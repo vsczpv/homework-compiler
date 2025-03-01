@@ -1,0 +1,53 @@
+
+namespace space = {
+
+	let mult = lambda x y: {
+		
+		var r = 0;
+
+		var negative = y < 0;
+
+		let handleSign = lambda n v: { 
+			return if n: yield -n;
+			       else: yield +n;
+		};
+
+		var c = handleSign negative y;
+
+		return handleSign negative while c != 0: r += x, c--; yielding r;
+	};
+	
+};
+
+let main = lambda _: {
+
+	let repeat2 = lambda act times valA valB: {
+
+		u::assert (times >= 0);
+
+		while times != 0: {
+			valA  = act valA valB;
+			times = times - 1;
+		};
+
+		return val;
+
+	};
+
+	let pow = repeat2 mult pw 1 base;
+
+	var res = if io::in! == 0: {
+		yield (pow 2 6);
+	}; else: {
+		yield pow 2 10;
+	};
+
+	val A = 2, B, X = -74;
+
+	X = B = A = res;
+
+	io::out X;
+	io::out B;
+	io::out A;
+	io::out res;
+};

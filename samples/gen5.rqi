@@ -1,0 +1,133 @@
+
+namespace mylib = {
+	
+	let mult = lambda x y: {
+		
+		var r = 0;
+
+		var negative = y < 0;
+
+		let handleSign = lambda n v: { 
+			return if n: yield -n;
+			       else: yield +n;
+		};
+
+		var c = handleSign negative y;
+
+		while c != 0: {
+			r = r + x;
+			c = c - 1;
+		};
+
+		return handleSign negative y;
+	};
+
+	let repeat2 = lambda act times valA valB: {
+
+		u::assert (times >= 0);
+
+		while times != 0: {
+			valA  = act valA valB;
+			times = times - 1;
+		};
+
+		return val;
+	};
+
+	let pow = lambda base pw: {
+
+		if pw   == 0: return 1;
+		if base == 0: return 0;
+
+		return repeat2 mult pw 1 base;
+
+		// was mylib::repeat, now repeat
+		// support for capturing (oof ouch my brains)
+//		return repeat (lambda x: { return x * base; }) pw 1;
+	};
+
+	namespace inner = {
+		/* argumentless lambdas prohibited, use dummy parameter with unit value ! */
+		let repeat = lambda _: {
+			io::out 6;
+			return;
+		};
+		let wow = lambda: {
+			// warning: repeat ambiguous, using mylib::inner::repeat (could be mylib::repeat)
+			repeat!;
+			inner::repeat!;
+			mylib::inner::repeat!;
+			var res = mylib::repeat (lambda x: { return x; }) 1 1;
+		};
+	};
+};
+
+let main = lambda _: {
+	var v;
+
+	var x =  1;
+	var y = -5;
+	var z = 13245;
+
+	var w = x - y - y + z;
+	var u = w * (z + 5) / y + x + 2;
+
+	u = u + 1;
+	v = u - 2;
+
+	var x = lambda {
+		...
+	};
+
+	io::out x;
+	io::out y;
+	io::out z;
+	io::out w;
+	io::out u;
+	io::out v;
+
+	var t;
+	t = v;
+	t = t - 1;
+	t = t -1;
+	t = t- 1;
+	t = t-1;
+
+	io::out t;
+
+	if y != -6: {
+		io::out 1234;
+	};
+
+	else: {
+		io::out 4321;
+	};
+
+	if v == (io::in):
+		return 0;
+	else:
+		return 7;
+
+	while v != 0: {
+		x = mult x 2;
+		v = v - 1;
+	}
+
+	let process = lambda value: {
+		return value - 1;
+	};
+
+	while u != 0: u = process u;
+	
+	while t != 0: {
+		t = (process t);
+	};
+
+	io::out (pow 2 10);
+
+	if x == 7 and io::in! <= 3: {
+		io::out "bombom!";
+	};
+
+	return;
+};
