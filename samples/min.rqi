@@ -1,31 +1,31 @@
 
-namespace space = {
+namespace space {
 
-	let mult = lambda x y: {
+	let mult = lambda x y : int int -> int {
 		
-		var r = 0;
+		let r = 0;
 
-		var negative = y < 0;
+		let negative = y < 0;
 
-		let handleSign = lambda n v: { 
-			return if n: yield -n;
-			       else: yield +n;
+		let handleSign = lambda n v : int int -> int { 
+			return if (n) { yield -n; }
+			       else   { yield +n; };
 		};
 
-		var c = handleSign negative y;
+		let c = handleSign negative y;
 
-		return handleSign negative while c != 0: r += x, c--; yielding r;
+		return handleSign negative while (c != 0) { r += x, c--; } yielding (r);
 	};
 	
 };
 
-let main = lambda _: {
+let main = lambda _ : unit -> unit {
 
-	let repeat2 = lambda act times valA valB: {
+	let repeat2 = lambda act times valA valB : (int int -> int) int int int -> int {
 
 		u::assert (times >= 0);
 
-		while times != 0: {
+		while (times != 0) {
 			valA  = act valA valB;
 			times = times - 1;
 		};
@@ -36,13 +36,13 @@ let main = lambda _: {
 
 	let pow = repeat2 mult pw 1 base;
 
-	var res = if io::in! == 0: {
+	let res = if (io::read_num! == 0) {
 		yield (pow 2 6);
-	}; else: {
+	} else {
 		yield pow 2 10;
 	};
 
-	val A = 2, B, X = -74;
+	let A = 2, B, X = -74;
 
 	X = B = A = res;
 

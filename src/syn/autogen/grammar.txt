@@ -1,0 +1,76 @@
+<scope>      ::= <scopeitem> SEMICOLON <scope> | <scopeitem> SEMICOLON;
+<block>      ::= OPENBLOCK <scope> CLOSEBLOCK | OPENBLOCK CLOSEBLOCK;
+<scopeitem>  ::= <expr_l> | <statement> | <block>;
+
+<statement>  ::= <letstmt> | <conststmt> | <returnstmt> | <yieldstmt> | <namespacestmt>;
+
+<letstmt>   ::= LETBIND   <expr_l>;
+<conststmt> ::= CONSTBIND <expr_l>;
+
+<returnstmt> ::= RETURN <expr_l>;
+<yieldstmt>  ::= YIELD  <expr_l>;
+
+<namespacestmt> ::= NAMESPACE IDENT <block>;
+
+<expr_l> ::= <exprlast> COMMA <expr_l> | <exprlast>;
+
+// TODO: Pointer stuff & check associativity
+
+<exprlast> ::= <exprA>; // ultima expressão
+
+<exprA>  ::= <expr9> <optrA> <exprA> | <expr9>;    // assign
+<expr9>  ::= <expr8> OROPTR   <expr9> | <expr8>;   // logicOr
+<expr8>  ::= <expr7> ANDOPTR  <expr8> | <expr7>;   // logicAnd
+<expr7>  ::= <expr6> BITOROPTR <expr7> | <expr6>;  // bitWiseOr
+<expr6>  ::= <expr5> BITXOROPTR <expr6> | <expr5>; // bitWiseXor
+<expr5>  ::= <expr4> BITANDOPTR <expr5> | <expr4>; // bitWiseAND
+<expr4>  ::= <expr3>  <optr4> <expr4> | <expr3>;   // logicEqual
+<expr3>  ::= <expr2>  <optr3> <expr3> | <expr2>;   // Logicos >< <= >=
+<expr2>  ::= <expr1>  <optr2> <expr2> | <expr1>;   // shift
+<expr1>  ::= <expr0>  <optr1> <expr1> | <expr0>;   // expressao (+-)
+<expr0>  ::= <exprZ> <optr0> <expr0> | <exprZ>;    // expressao (*/%)
+<exprZ> ::= <exprP> TYPESPEC <type>  | <exprP>;    // cast
+<exprP>  ::= OPENPAR <expr_l> CLOSEPAR | <unary0>; // parenteses
+
+<optrA> ::= ASSIGNOPTR | PLUSEQUALSOPTR   | MINUSEQUALSOPTR  | MULTEQUALSOPTR | DIVEQUALSOPTR | RSHIFTEQUALSOPTR | LSHIFTEQUALSOPTR | BITANDEQUALSOPTR | BITXOREQUALSOPTR | BITOREQUALSOPTR; // =, +=, -=, *=, /=, >>=, <<= , &, |
+<optr4> ::= EQUALSOPTR | NEQOPTR;                                               // ==, !=
+<optr3> ::= LTOPTR     | GTOPTR | LTEOPTR | GTEOPTR;                            // <, >, <=, >=
+<optr2> ::= RSHIFTOPTR | LSHIFTOPTR;                                            // >>, <<
+<optr1> ::= PLUSOPTR   | MINUSOPTR;                                             // +, -
+<optr0> ::= MULTOPTR   | DIVOPTR | REMOPTR;                                     // *, /, %
+
+<unary0>    ::= <prefix> <unary1> | <unary1>;                                   // •val
+<unary1>    ::= <value> <postfix> | <value> <brack> | <value>;                  // val•, val[]
+
+<prefix>  ::= PLUSPLUSOPTR | MINUSMINUSOPTR | PLUSOPTR | MINUSOPTR | NOTOPTR | BITNOTOPTR; // ++, --, +, -, not, ~
+<postfix> ::= PLUSPLUSOPTR | MINUSMINUSOPTR;                                               // +, -
+<brack>   ::= OPENBRACK <expr_l> CLOSEBRACK;                                               // [, ]
+
+<value> ::= <term> <value> | <term> OPENPAR <expr_l> CLOSEPAR <value> | <term> OPENPAR <expr_l> CLOSEPAR | <term>;
+<term>  ::= NUMBER | FLOAT | <ident> | CHARLITER | STRINGLITER | UNIT | <lambda> | <array> | <ifexpr> | <whileexpr> | <forexpr> ;
+<ident> ::= IDENT DOUBLECOLON <ident> | IDENT; // resolução namespace
+
+// TODO: normal pointers, array pointers
+<type>           ::= <builtintypes> | <arraytype> | OPENPAR <l_type> CLOSEPAR;
+<builtintypes>   ::= TYPE_CHAR | TYPE_FLOAT | TYPE_INT | TYPE_UNIT;
+<arraytype>      ::= OPENBRACK <type> SEMICOLON <expr_l> CLOSEBRACK;
+
+<lambda>          ::= LAMBDA <l_type_with_var> <block>;
+
+<l_type_with_var> ::= <l_var_n_types> LRETURNS <type>;
+<l_var_n_types>   ::= IDENT <l_var_n_types> <type> | IDENT TYPESPEC <type>;
+
+<l_type>  ::= <l_types> LRETURNS <type>;
+<l_types> ::= <type> <l_types> | <type>;
+
+<array>    ::= ARRAY TYPESPEC <arraytype> <arraydef>;
+<arraydef> ::= OPENBLOCK <maybe_expr_l> CLOSEBLOCK | î;
+
+<ifexpr>      ::= IFSTMT OPENPAR <expr_l> CLOSEPAR <block> <ifexpr_more>;
+<ifexpr_more> ::= ELSESTMT <ifexpr> | ELSESTMT <block> | î;
+
+<whileexpr> ::= WHILELOOP OPENPAR <expr_l> CLOSEPAR <block> <maybe_yield>;
+<forexpr> ::= FORLOOP <ident> FLIN OPENPAR <expr_l> RANGE <expr_l> CLOSEPAR  <block> <maybe_yield>;
+
+<maybe_yield>  ::= YIELDING OPENPAR <expr_l> CLOSEPAR | î;
+<maybe_expr_l> ::= <expr_l> | î;
