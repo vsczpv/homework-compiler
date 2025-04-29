@@ -1,6 +1,6 @@
-use std::ops::Range;
-
 use crate::lex::lexer::Lexeme;
+use crate::syn::preprocess::*;
+use std::ops::Range;
 
 #[derive(Debug, Copy, Clone)]
 #[repr(u16)]
@@ -164,6 +164,43 @@ impl AstNode {
             kind,
             children: Vec::default(),
         })
+    }
+    pub fn apply_many(mut self: Box<Self>, processes: &[PreprocessKind]) -> Box<Self> {
+        for p in processes {
+            match p {
+                PreprocessKind::Prefix(proc) => self = self.apply(proc),
+                PreprocessKind::Postfix(proc) => self = self.apply_postfix(proc),
+            }
+        }
+        return self;
+    }
+    pub fn apply<F>(mut self: Box<Self>, transform: F) -> Box<Self>
+    where
+        F: Fn(Box<Self>) -> Box<Self> + Copy + Clone,
+    {
+        self = transform(self);
+
+        let mut newnode = AstNode::new(self.get_kind().clone());
+        let children = self.unpeel_children();
+
+        for c in children {
+            newnode.add_child(c.apply(transform));
+        }
+
+        return newnode;
+    }
+    pub fn apply_postfix<F>(self: Box<Self>, transform: F) -> Box<Self>
+    where
+        F: Fn(Box<Self>) -> Box<Self> + Copy + Clone,
+    {
+        let mut newnode = AstNode::new(self.get_kind().clone());
+        let children = self.unpeel_children();
+
+        for c in children {
+            newnode.add_child(c.apply_postfix(transform));
+        }
+
+        return transform(newnode);
     }
     pub fn add_child(&mut self, child: Box<AstNode>) {
         self.children.push(child);
