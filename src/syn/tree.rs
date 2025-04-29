@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use crate::lex::lexer::Lexeme;
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 #[repr(u16)]
 pub enum NonTerminal {
     Scope,
@@ -126,10 +126,16 @@ impl From<u16> for NonTerminal {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
+pub enum Virtual {
+    GenericExpression,
+}
+
+#[derive(Debug, Clone)]
 pub enum NodeKind {
     Lex(Lexeme),
     Non(NonTerminal),
+    Virt(Virtual),
 }
 
 impl Default for NodeKind {
@@ -176,5 +182,47 @@ impl AstNode {
     }
     pub fn invert_children(&mut self) {
         self.children.reverse();
+    }
+    pub fn get_children(&self) -> &Vec<Box<AstNode>> {
+        &self.children
+    }
+    pub fn unpeel_children(self) -> Vec<Box<AstNode>> {
+        self.children
+    }
+    pub fn is_nonterminal_expression(&self) -> bool {
+        if let NodeKind::Non(kd) = self.get_kind() {
+            match kd {
+                NonTerminal::ExprL
+                | NonTerminal::ExprLast
+                | NonTerminal::ExprA
+                | NonTerminal::Expr9
+                | NonTerminal::Expr8
+                | NonTerminal::Expr7
+                | NonTerminal::Expr6
+                | NonTerminal::Expr5
+                | NonTerminal::Expr4
+                | NonTerminal::Expr3
+                | NonTerminal::Expr2
+                | NonTerminal::Expr1
+                | NonTerminal::Expr0
+                | NonTerminal::ExprZ
+                | NonTerminal::ExprP
+                | NonTerminal::Unary0
+                | NonTerminal::Unary1 => true,
+                _ => false,
+            }
+        } else {
+            false
+        }
+    }
+    pub fn is_expression(&self) -> bool {
+        if let NodeKind::Virt(kd) = self.get_kind() {
+            match kd {
+                Virtual::GenericExpression => true,
+                _ => false,
+            }
+        } else {
+            false
+        }
     }
 }

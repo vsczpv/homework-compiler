@@ -50,4 +50,6 @@ let main = lambda _ : unit -> unit {
 	io::out B;
 	io::out A;
 	io::out res;
+
+	let numer = 1 + (2 * 3);
 };
