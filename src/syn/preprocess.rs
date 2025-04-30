@@ -4,22 +4,15 @@ use super::tree::{AstNode, NodeKind, Virtual};
 
 pub type PreprocessClosure = fn(Box<AstNode>) -> Box<AstNode>;
 
-pub enum PreprocessKind {
-    Prefix(PreprocessClosure),
-    Postfix(PreprocessClosure),
-}
-
-use PreprocessKind::*;
-
-const GENERICIZE_EXPRESSIONS: PreprocessKind = Prefix(|mut node| {
+const GENERICIZE_EXPRESSIONS: PreprocessClosure = |mut node| {
     if node.is_nonterminal_expression() {
         node.morph(NodeKind::Virt(Virtual::GenericExpression));
     }
 
     return node;
-});
+};
 
-const UNPARENTHETIZE: PreprocessKind = Prefix(|mut node| {
+const UNPARENTHETIZE: PreprocessClosure = |mut node| {
     if node.is_expression() && node.get_children().len() == 3 {
         #[rustfmt::skip]
         let cond: bool =
@@ -39,9 +32,9 @@ const UNPARENTHETIZE: PreprocessKind = Prefix(|mut node| {
         }
     };
     return node;
-});
+};
 
-const REDUCE_EXPRESSIONS: PreprocessKind = Postfix(|node| {
+const REDUCE_EXPRESSIONS: PreprocessClosure = |node| {
     if node.is_expression()
         && node.get_children().len() == 1
         && node.get_children()[0].is_expression()
@@ -49,7 +42,7 @@ const REDUCE_EXPRESSIONS: PreprocessKind = Postfix(|node| {
         return node.unpeel_children().into_iter().nth(0).unwrap();
     }
     return node;
-});
+};
 
-pub const PREPROCESSES: [PreprocessKind; 3] =
+pub const PREPROCESSES: [PreprocessClosure; 3] =
     [GENERICIZE_EXPRESSIONS, UNPARENTHETIZE, REDUCE_EXPRESSIONS];

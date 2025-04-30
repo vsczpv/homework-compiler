@@ -165,39 +165,21 @@ impl AstNode {
             children: Vec::default(),
         })
     }
-    pub fn apply_many(mut self: Box<Self>, processes: &[PreprocessKind]) -> Box<Self> {
+    pub fn apply_many(mut self: Box<Self>, processes: &[PreprocessClosure]) -> Box<Self> {
         for p in processes {
-            match p {
-                PreprocessKind::Prefix(proc) => self = self.apply(proc),
-                PreprocessKind::Postfix(proc) => self = self.apply_postfix(proc),
-            }
+            self = self.apply(p);
         }
         return self;
     }
-    pub fn apply<F>(mut self: Box<Self>, transform: F) -> Box<Self>
+    pub fn apply<F>(self: Box<Self>, transform: F) -> Box<Self>
     where
         F: Fn(Box<Self>) -> Box<Self> + Copy + Clone,
     {
-        self = transform(self);
-
         let mut newnode = AstNode::new(self.get_kind().clone());
         let children = self.unpeel_children();
 
         for c in children {
             newnode.add_child(c.apply(transform));
-        }
-
-        return newnode;
-    }
-    pub fn apply_postfix<F>(self: Box<Self>, transform: F) -> Box<Self>
-    where
-        F: Fn(Box<Self>) -> Box<Self> + Copy + Clone,
-    {
-        let mut newnode = AstNode::new(self.get_kind().clone());
-        let children = self.unpeel_children();
-
-        for c in children {
-            newnode.add_child(c.apply_postfix(transform));
         }
 
         return transform(newnode);
@@ -256,6 +238,7 @@ impl AstNode {
         if let NodeKind::Virt(kd) = self.get_kind() {
             match kd {
                 Virtual::GenericExpression => true,
+                #[allow(unreachable_patterns)]
                 _ => false,
             }
         } else {
