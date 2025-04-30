@@ -1,18 +1,39 @@
-use crate::lex::tokens::Token;
+use std::{error::Error, fmt::Display};
+
+use crate::lex::{lexer::Lexeme, tokens::Token};
 
 use super::tree::{AstNode, NodeKind, Virtual};
 
-pub type PreprocessClosure = fn(Box<AstNode>) -> Box<AstNode>;
+#[derive(Debug, Clone)]
+pub struct AstPreprocessingError(String, Lexeme);
 
-const GENERICIZE_EXPRESSIONS: PreprocessClosure = |mut node| {
+impl Display for AstPreprocessingError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "syntax error on {:?}: {} ", self.1.get_token(), self.0)
+    }
+}
+
+impl Error for AstPreprocessingError {}
+
+pub type PreprocessClosure = fn(Box<AstNode>) -> Box<AstNode>;
+pub type TryPreprocessClosure = fn(Box<AstNode>) -> Result<Box<AstNode>, AstPreprocessingError>;
+
+pub enum PreprocessKind {
+    Infallible(PreprocessClosure),
+    Fallible(TryPreprocessClosure),
+}
+
+use PreprocessKind::*;
+
+const GENERICIZE_EXPRESSIONS: PreprocessKind = Infallible(|mut node| {
     if node.is_nonterminal_expression() {
         node.morph(NodeKind::Virt(Virtual::GenericExpression));
     }
 
     return node;
-};
+});
 
-const UNPARENTHETIZE: PreprocessClosure = |mut node| {
+const UNPARENTHETIZE: PreprocessKind = Infallible(|mut node| {
     if node.is_expression() && node.get_children().len() == 3 {
         #[rustfmt::skip]
         let cond: bool =
@@ -32,9 +53,9 @@ const UNPARENTHETIZE: PreprocessClosure = |mut node| {
         }
     };
     return node;
-};
+});
 
-const REDUCE_EXPRESSIONS: PreprocessClosure = |node| {
+const REDUCE_EXPRESSIONS: PreprocessKind = Infallible(|node| {
     if node.is_expression()
         && node.get_children().len() == 1
         && node.get_children()[0].is_expression()
@@ -42,7 +63,13 @@ const REDUCE_EXPRESSIONS: PreprocessClosure = |node| {
         return node.unpeel_children().into_iter().nth(0).unwrap();
     }
     return node;
-};
+});
 
-pub const PREPROCESSES: [PreprocessClosure; 3] =
-    [GENERICIZE_EXPRESSIONS, UNPARENTHETIZE, REDUCE_EXPRESSIONS];
+const DECLARATION_CHECK: PreprocessKind = Fallible(|node| Ok(node));
+
+pub const PREPROCESSES: [PreprocessKind; 4] = [
+    GENERICIZE_EXPRESSIONS,
+    UNPARENTHETIZE,
+    REDUCE_EXPRESSIONS,
+    DECLARATION_CHECK,
+];

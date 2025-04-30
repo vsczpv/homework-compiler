@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let syn = SyntaxParser::new(lexemes)
         .parse()?
-        .apply_many(&syn::preprocess::PREPROCESSES);
+        .try_apply_many(&syn::preprocess::PREPROCESSES)?;
 
     syn.print_tree(0);
 

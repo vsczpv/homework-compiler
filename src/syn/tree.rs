@@ -2,6 +2,8 @@ use crate::lex::lexer::Lexeme;
 use crate::syn::preprocess::*;
 use std::ops::Range;
 
+use super::preprocess;
+
 #[derive(Debug, Copy, Clone)]
 #[repr(u16)]
 pub enum NonTerminal {
@@ -165,21 +167,29 @@ impl AstNode {
             children: Vec::default(),
         })
     }
-    pub fn apply_many(mut self: Box<Self>, processes: &[PreprocessClosure]) -> Box<Self> {
+    pub fn try_apply_many(
+        mut self: Box<Self>,
+        processes: &[PreprocessKind],
+    ) -> Result<Box<Self>, AstPreprocessingError> {
         for p in processes {
-            self = self.apply(p);
+            match p {
+                PreprocessKind::Infallible(proc) => {
+                    self = self.try_apply(|node| Ok(proc(node))).unwrap()
+                }
+                PreprocessKind::Fallible(proc) => self = self.try_apply(proc)?,
+            }
         }
-        return self;
+        return Ok(self);
     }
-    pub fn apply<F>(self: Box<Self>, transform: F) -> Box<Self>
+    pub fn try_apply<F>(self: Box<Self>, transform: F) -> Result<Box<Self>, AstPreprocessingError>
     where
-        F: Fn(Box<Self>) -> Box<Self> + Copy + Clone,
+        F: Fn(Box<Self>) -> Result<Box<Self>, AstPreprocessingError> + Copy + Clone,
     {
         let mut newnode = AstNode::new(self.get_kind().clone());
         let children = self.unpeel_children();
 
         for c in children {
-            newnode.add_child(c.apply(transform));
+            newnode.add_child(c.try_apply(transform)?);
         }
 
         return transform(newnode);
