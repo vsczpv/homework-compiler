@@ -128,9 +128,14 @@ impl From<u16> for NonTerminal {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub enum Virtual {
     GenericExpression,
+    GenericExpressionList,
+    LetBinding { ident: String, defined: bool },
+    ConstBinding { ident: String, defined: bool },
+    LetBindingGroup,
+    ConstBindingGroup,
 }
 
 #[derive(Debug, Clone)]
@@ -138,6 +143,27 @@ pub enum NodeKind {
     Lex(Lexeme),
     Non(NonTerminal),
     Virt(Virtual),
+}
+
+impl NodeKind {
+    pub fn some_lex(self) -> Option<Lexeme> {
+        match self {
+            NodeKind::Lex(lexeme) => Some(lexeme),
+            _ => None,
+        }
+    }
+    pub fn some_non(self) -> Option<NonTerminal> {
+        match self {
+            NodeKind::Non(nt) => Some(nt),
+            _ => None,
+        }
+    }
+    pub fn some_virt(self) -> Option<Virtual> {
+        match self {
+            NodeKind::Virt(virt) => Some(virt),
+            _ => None,
+        }
+    }
 }
 
 impl Default for NodeKind {
@@ -214,6 +240,12 @@ impl AstNode {
     }
     pub fn get_children(&self) -> &Vec<Box<AstNode>> {
         &self.children
+    }
+    pub fn follow_line<'a>(self: &'a Box<Self>, depth: usize) -> &'a Box<Self> {
+        match depth {
+            0 => self,
+            _ => self.children[0].follow_line(depth - 1),
+        }
     }
     pub fn unpeel_children(self) -> Vec<Box<AstNode>> {
         self.children

@@ -1,4 +1,7 @@
 
+const saab = 1, suub = 2;
+let test = 1, tust = 2, tast = tust = 3;
+
 namespace space {
 
 	let mult = lambda x y : int int -> int {
