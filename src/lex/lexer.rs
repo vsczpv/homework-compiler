@@ -32,6 +32,20 @@ pub struct Lexer {
     lexemes: Vec<Lexeme>,
 }
 
+impl Default for Lexeme {
+    fn default() -> Self {
+        Lexeme::new(
+            Token::DOLLAR,
+            Range {
+                start: usize::MAX,
+                end: usize::MAX,
+            },
+            usize::MAX,
+            usize::MAX,
+        )
+    }
+}
+
 impl Lexeme {
     pub fn new(token_kind: Token, range: Range<usize>, line: usize, col: usize) -> Self {
         Lexeme {
@@ -112,15 +126,7 @@ impl Lexer {
             col += col_to_add;
         }
 
-        self.lexemes.push(Lexeme::new(
-            Token::DOLLAR,
-            Range {
-                start: usize::MAX,
-                end: usize::MAX,
-            },
-            usize::MAX,
-            usize::MAX,
-        ));
+        self.lexemes.push(Lexeme::default());
 
         Ok(self.lexemes)
     }

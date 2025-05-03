@@ -64,6 +64,106 @@ const UNPARENTHETIZE: PreprocessKind = Infallible(|mut node| {
     return node;
 });
 
+const UNPARENTHETIZE_VALUE: PreprocessKind = Infallible(|mut node| {
+    if matches!(node.get_kind(), NodeKind::Non(NonTerminal::Value)) && node.get_children().len() > 2
+    {
+        let mut newnode = AstNode::new(node.get_kind().to_owned());
+        let mut children = node.unpeel_children().into_iter();
+
+        /* <term> */
+        newnode.add_child(children.next().unwrap());
+
+        /* OPEN_PAR */
+        children.next();
+
+        /* <expr_l> */
+        newnode.add_child(children.next().unwrap());
+
+        /* CLOSE_PAR */
+        children.next();
+
+        /* <value> */
+        if let Some(ast) = children.next() {
+            newnode.add_child(ast);
+        }
+
+        node = newnode;
+    }
+
+    return node;
+});
+
+const PROXY_TERM_REDUCTION: PreprocessKind = Infallible(|mut node| {
+    if matches!(node.get_kind(), NodeKind::Non(NonTerminal::Value))
+        && node.get_children().len() == 1
+    {
+        let mut newnode = AstNode::new(NodeKind::Virt(Virtual::WrappedTerm));
+        let child = node
+            .unpeel_children()
+            .into_iter()
+            .nth(0)
+            .unwrap()
+            .unpeel_children()
+            .into_iter()
+            .nth(0)
+            .unwrap();
+
+        newnode.add_child(child);
+        node = newnode;
+    } else if matches!(node.get_kind(), NodeKind::Non(NonTerminal::Term)) {
+        let mut newnode = AstNode::new(NodeKind::Virt(Virtual::WrappedTerm));
+        #[rustfmt::skip]
+        let child = node
+            .unpeel_children()
+            .into_iter()
+            .nth(0)
+            .unwrap();
+        newnode.add_child(child);
+        node = newnode;
+    }
+
+    return node;
+});
+
+const FLATTEN_VALUE: PreprocessKind = Infallible(|mut node| {
+    if matches!(node.get_kind(), NodeKind::Non(NonTerminal::Value)) {
+        let mut newnode = AstNode::new(node.get_kind().to_owned());
+        let len = node.get_children().len();
+        let mut children = node.unpeel_children().into_iter();
+        match len {
+            2 => {
+                newnode.add_child(children.next().unwrap());
+                let tail = children.next().unwrap();
+                if matches!(tail.get_kind(), NodeKind::Non(NonTerminal::Value)) {
+                    let morekids = tail.unpeel_children();
+                    for k in morekids {
+                        newnode.add_child(k);
+                    }
+                } else {
+                    newnode.add_child(tail);
+                }
+                node = newnode;
+            }
+            3 => {
+                newnode.add_child(children.next().unwrap());
+                newnode.add_child(children.next().unwrap());
+                let tail = children.next().unwrap();
+                if matches!(tail.get_kind(), NodeKind::Non(NonTerminal::Value)) {
+                    let morekids = tail.unpeel_children();
+                    for k in morekids {
+                        newnode.add_child(k);
+                    }
+                } else {
+                    newnode.add_child(tail);
+                }
+                node = newnode;
+            }
+            _ => panic!("Invalid preprocessing state."),
+        };
+    }
+    return node;
+});
+
 const REDUCE_EXPRESSIONS: PreprocessKind = Infallible(|node| {
     if node.is_expression()
         && node.get_children().len() == 1
@@ -124,6 +224,18 @@ const FLATTEN_EXPRL: PreprocessKind = Infallible(|mut node| {
     return node;
 });
 
+const VALUE_INTO_APPLICATION: PreprocessKind = Infallible(|mut node| {
+    if matches!(node.get_kind(), NodeKind::Non(NonTerminal::Value)) {
+        let mut newnode = AstNode::new(NodeKind::Virt(Virtual::Application));
+        for c in node.unpeel_children() {
+            newnode.add_child(c);
+        }
+        node = newnode;
+    }
+
+    return node;
+});
+
 macro_rules! declarm {
     ($node:expr, $b:ident, $bg:ident) => {{
         let children = $node.unpeel_children();
@@ -147,7 +259,7 @@ macro_rules! declarm {
             let defined = bind.get_children().len() != 1;
 
             let ident = bind
-                .follow_line(if defined { 5 } else { 4 })
+                .follow_line(if defined { 4 } else { 3 })
                 .get_kind()
                 .to_owned()
                 .some_lex()
@@ -213,11 +325,15 @@ const DECLARATIONS: PreprocessKind = Fallible(|node| match node.get_kind() {
     _ => Ok(node),
 });
 
-pub const PREPROCESSES: [PreprocessKind; 6] = [
+pub const PREPROCESSES: [PreprocessKind; 10] = [
     GENERICIZE_EXPRESSIONS,
     UNPARENTHETIZE,
+    UNPARENTHETIZE_VALUE,
+    PROXY_TERM_REDUCTION,
     REDUCE_EXPRESSIONS,
     ELEMINATE_COMMAS_IN_EXPRL,
+    FLATTEN_VALUE,
     FLATTEN_EXPRL,
+    VALUE_INTO_APPLICATION,
     DECLARATIONS,
 ];

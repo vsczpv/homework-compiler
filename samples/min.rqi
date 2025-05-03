@@ -1,4 +1,9 @@
 
+let variable = 1;
+let othervar = funcall 1 2 (morecall 3 4 5) 6;
+
+let lastone = funcall 1 2 3;
+
 const saab = 1, suub = 2;
 let test = 1, tust = 2, tast = tust = 3;
 

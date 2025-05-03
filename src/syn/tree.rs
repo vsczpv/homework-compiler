@@ -136,6 +136,9 @@ pub enum Virtual {
     ConstBinding { ident: String, defined: bool },
     LetBindingGroup,
     ConstBindingGroup,
+    WrappedTerm,
+    Value,
+    Application,
 }
 
 #[derive(Debug, Clone)]
