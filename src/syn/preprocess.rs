@@ -325,7 +325,85 @@ const DECLARATIONS: PreprocessKind = Fallible(|node| match node.get_kind() {
     _ => Ok(node),
 });
 
-pub const PREPROCESSES: [PreprocessKind; 10] = [
+/*
+const LAMBDAS: PreprocessKind = Infallible(|node| {
+    if matches!(node.get_kind(), NodeKind::Non(NonTerminal::Lambda)) {
+        let mut children = node.unpeel_children().into_iter().skip(1);
+        let typesig = children.next().unwrap();
+        let block = children.next().unwrap();
+
+
+
+        todo!()
+    }
+    return node;
+});
+*/
+
+const FLATTEN_SCOPES: PreprocessKind = Infallible(|mut node| {
+    if matches!(node.get_kind(), NodeKind::Non(NonTerminal::Scope)) {
+        let mut newnode = AstNode::new(NodeKind::Virt(Virtual::Scope));
+        let mut children = node
+            .unpeel_children()
+            .into_iter()
+            .filter(|v| !matches!(v.get_kind(), NodeKind::Lex(_)));
+
+        newnode.add_child(children.next().unwrap());
+
+        if let Some(v) = children.next() {
+            if matches!(v.get_kind(), NodeKind::Virt(Virtual::Scope)) {
+                let kids = v.unpeel_children();
+                for k in kids {
+                    newnode.add_child(k);
+                }
+            }
+        }
+
+        node = newnode;
+    }
+    return node;
+});
+
+const RETURN_AND_YIELD: PreprocessKind = Infallible(|mut node| {
+    match node.get_kind() {
+        NodeKind::Non(NonTerminal::ReturnStmt) => {
+            node.morph(NodeKind::Virt(Virtual::Return));
+            node.get_children_mut().remove(0);
+        }
+        NodeKind::Non(NonTerminal::YieldStmt) => {
+            node.morph(NodeKind::Virt(Virtual::Yield));
+            node.get_children_mut().remove(0);
+        }
+        _ => {}
+    };
+    return node;
+});
+
+const NAMESPACES: PreprocessKind = Infallible(|mut node| {
+    if matches!(node.get_kind(), NodeKind::Non(NonTerminal::NamespaceStmt)) {
+        let mut children = node.unpeel_children().into_iter().skip(1);
+
+        let mut newnode = AstNode::new(NodeKind::Virt(Virtual::Namespace {
+            ident: children
+                .next()
+                .unwrap()
+                .get_kind()
+                .to_owned()
+                .some_lex()
+                .unwrap()
+                .get_token()
+                .some_identifier()
+                .unwrap()
+                .to_owned(),
+        }));
+
+        newnode.add_child(children.next().unwrap());
+        node = newnode;
+    }
+    return node;
+});
+
+pub const PREPROCESSES: [PreprocessKind; 13] = [
     GENERICIZE_EXPRESSIONS,
     UNPARENTHETIZE,
     UNPARENTHETIZE_VALUE,
@@ -336,4 +414,7 @@ pub const PREPROCESSES: [PreprocessKind; 10] = [
     FLATTEN_EXPRL,
     VALUE_INTO_APPLICATION,
     DECLARATIONS,
+    FLATTEN_SCOPES,
+    RETURN_AND_YIELD,
+    NAMESPACES,
 ];

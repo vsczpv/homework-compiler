@@ -101,6 +101,12 @@ impl Token {
             return false;
         }
     }
+    pub fn some_identifier(&self) -> Option<&String> {
+        match self {
+            Token::Identifier(s) => Some(s),
+            _ => None,
+        }
+    }
     pub fn is_number(&self) -> bool {
         if let Token::Number(_) = self.clone() {
             return true;

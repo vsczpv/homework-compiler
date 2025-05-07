@@ -139,6 +139,10 @@ pub enum Virtual {
     WrappedTerm,
     Value,
     Application,
+    Scope,
+    Return,
+    Yield,
+    Namespace { ident: String },
 }
 
 #[derive(Debug, Clone)]
@@ -243,6 +247,9 @@ impl AstNode {
     }
     pub fn get_children(&self) -> &Vec<Box<AstNode>> {
         &self.children
+    }
+    pub fn get_children_mut(&mut self) -> &mut Vec<Box<AstNode>> {
+        &mut self.children
     }
     pub fn follow_line<'a>(self: &'a Box<Self>, depth: usize) -> &'a Box<Self> {
         match depth {
