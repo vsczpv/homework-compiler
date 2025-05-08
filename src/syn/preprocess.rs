@@ -275,6 +275,19 @@ macro_rules! declarm {
                     errlex.clone(),
                 ))?;
 
+            /* Very hacky test for namespaced idents. */
+            if bind
+                .follow_line(if defined { 3 } else { 2 })
+                .get_children()
+                .len()
+                != 1
+            {
+                bind.follow_line(if defined { 3 } else { 2 }).print_tree(1);
+                return Err(AstPreprocessingError(
+                    "First element of a binding must be a non-namespaced identifier.".into(),
+                    errlex.clone(),
+                ));
+            };
             let mut letbinding = AstNode::new(NodeKind::Virt(Virtual::$b { ident, defined }));
 
             if defined {
@@ -324,21 +337,6 @@ const DECLARATIONS: PreprocessKind = Fallible(|node| match node.get_kind() {
     }
     _ => Ok(node),
 });
-
-/*
-const LAMBDAS: PreprocessKind = Infallible(|node| {
-    if matches!(node.get_kind(), NodeKind::Non(NonTerminal::Lambda)) {
-        let mut children = node.unpeel_children().into_iter().skip(1);
-        let typesig = children.next().unwrap();
-        let block = children.next().unwrap();
-
-
-
-        todo!()
-    }
-    return node;
-});
-*/
 
 const FLATTEN_SCOPES: PreprocessKind = Infallible(|mut node| {
     if matches!(node.get_kind(), NodeKind::Non(NonTerminal::Scope)) {
@@ -403,7 +401,148 @@ const NAMESPACES: PreprocessKind = Infallible(|mut node| {
     return node;
 });
 
-pub const PREPROCESSES: [PreprocessKind; 13] = [
+const REDUCE_BLOCKS: PreprocessKind = Infallible(|node| {
+    if matches!(node.get_kind(), NodeKind::Non(NonTerminal::Block)) {
+        if matches!(node.get_children()[1].get_kind(), NodeKind::Lex(_)) {
+            return AstNode::new(NodeKind::Virt(Virtual::Scope));
+        } else {
+            return node.unpeel_children().into_iter().skip(1).next().unwrap();
+        }
+    }
+    return node;
+});
+
+fn parse_lambda_recurse(
+    root: Box<AstNode>,
+    sigident: &mut Vec<String>,
+    sigtype: &mut Vec<Box<AstNode>>,
+) {
+    let mut children = root.unpeel_children().into_iter();
+
+    let this_ident = children.next().unwrap();
+    let more = children.next().unwrap();
+    let this_type = children.next().unwrap();
+
+    sigident.push(
+        this_ident
+            .get_kind()
+            .to_owned()
+            .some_lex()
+            .unwrap()
+            .get_token()
+            .some_identifier()
+            .cloned()
+            .unwrap(),
+    );
+
+    if matches!(more.get_kind(), NodeKind::Non(NonTerminal::LVarNTypes)) {
+        parse_lambda_recurse(more, sigident, sigtype);
+    }
+
+    sigtype.push(this_type);
+}
+
+const PARSE_LAMBDA: PreprocessKind = Infallible(|mut node| {
+    if matches!(node.get_kind(), NodeKind::Non(NonTerminal::Lambda)) {
+        let mut newnode = AstNode::new(NodeKind::Virt(Virtual::LambdaRoot));
+        let mut children = node.unpeel_children().into_iter().skip(1);
+
+        let typesig = children.next().unwrap();
+        let scope = children.next().unwrap();
+
+        let mut sigkids = typesig.unpeel_children().into_iter();
+        let varntypes = sigkids.next().unwrap();
+
+        sigkids.next();
+
+        let returntype = sigkids.next().unwrap();
+
+        let mut signatures_ident: Vec<String> = Vec::new();
+        let mut signatures_type: Vec<Box<AstNode>> = Vec::new();
+
+        parse_lambda_recurse(varntypes, &mut signatures_ident, &mut signatures_type);
+
+        assert_eq!(signatures_ident.len(), signatures_type.len());
+
+        let mut sigsnode = AstNode::new(NodeKind::Virt(Virtual::LambdaSignature));
+
+        for (ident, typ) in signatures_ident
+            .into_iter()
+            .zip(signatures_type.into_iter())
+        {
+            let mut kid = AstNode::new(NodeKind::Virt(Virtual::LambdaTypeVarPair { ident }));
+            kid.add_child(typ);
+            sigsnode.add_child(kid);
+        }
+
+        newnode.add_child(sigsnode);
+        newnode.add_child(returntype);
+        newnode.add_child(scope);
+
+        node = newnode;
+    }
+    return node;
+});
+
+const REDUCE_IDENTS: PreprocessKind = Infallible(|mut node| {
+    if matches!(node.get_kind(), NodeKind::Non(NonTerminal::Ident)) {
+        if node.get_children().len() != 1 {
+            let mut newnode = AstNode::new(NodeKind::Virt(Virtual::Ident));
+            let mut children = node.unpeel_children().into_iter();
+
+            newnode.add_child(children.next().unwrap());
+
+            children.next();
+
+            let kids = children.next().unwrap().unpeel_children();
+
+            for k in kids {
+                newnode.add_child(k);
+            }
+
+            node = newnode;
+        } else {
+            node.morph(NodeKind::Virt(Virtual::Ident));
+        }
+    }
+    return node;
+});
+
+const REDUCE_SCOPEITEM: PreprocessKind = Infallible(|node| {
+    if matches!(node.get_kind(), NodeKind::Non(NonTerminal::ScopeItem)) {
+        if matches!(
+            node.follow_line(1).get_kind(),
+            NodeKind::Virt(Virtual::GenericExpression)
+        ) || matches!(
+            node.follow_line(1).get_kind(),
+            NodeKind::Virt(Virtual::GenericExpressionList)
+        ) {
+            return node.move_follow_line(1);
+        } else {
+            return node.move_follow_line(2);
+        }
+    }
+    return node;
+});
+
+const ACCEPT_IFEXPR: PreprocessKind = Infallible(|mut node| {
+    if matches!(node.get_kind(), NodeKind::Non(NonTerminal::IfExpr))
+        || matches!(node.get_kind(), NodeKind::Non(NonTerminal::IfExprMore))
+    {
+        node.get_children_mut()
+            .retain(|n| !matches!(n.get_kind(), NodeKind::Lex(_)) && n.get_children().len() != 0);
+
+        node.morph(match node.get_kind() {
+            NodeKind::Non(NonTerminal::IfExpr) => NodeKind::Virt(Virtual::IfExpr),
+            NodeKind::Non(NonTerminal::IfExprMore) => NodeKind::Virt(Virtual::IfExprMore),
+            _ => panic!("Invalid preprocessing state."),
+        });
+    }
+
+    return node;
+});
+
+pub const PREPROCESSES: [PreprocessKind; 18] = [
     GENERICIZE_EXPRESSIONS,
     UNPARENTHETIZE,
     UNPARENTHETIZE_VALUE,
@@ -413,8 +552,13 @@ pub const PREPROCESSES: [PreprocessKind; 13] = [
     FLATTEN_VALUE,
     FLATTEN_EXPRL,
     VALUE_INTO_APPLICATION,
+    REDUCE_IDENTS,
     DECLARATIONS,
     FLATTEN_SCOPES,
     RETURN_AND_YIELD,
     NAMESPACES,
+    REDUCE_BLOCKS,
+    PARSE_LAMBDA,
+    REDUCE_SCOPEITEM,
+    ACCEPT_IFEXPR,
 ];

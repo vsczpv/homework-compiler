@@ -128,6 +128,7 @@ impl From<u16> for NonTerminal {
     }
 }
 
+#[allow(unused)]
 #[derive(Debug, Clone)]
 pub enum Virtual {
     GenericExpression,
@@ -137,12 +138,17 @@ pub enum Virtual {
     LetBindingGroup,
     ConstBindingGroup,
     WrappedTerm,
-    Value,
     Application,
     Scope,
     Return,
     Yield,
     Namespace { ident: String },
+    LambdaRoot,
+    LambdaSignature,
+    LambdaTypeVarPair { ident: String },
+    Ident,
+    IfExpr,
+    IfExprMore,
 }
 
 #[derive(Debug, Clone)]
@@ -255,6 +261,17 @@ impl AstNode {
         match depth {
             0 => self,
             _ => self.children[0].follow_line(depth - 1),
+        }
+    }
+    pub fn move_follow_line(self: Box<Self>, depth: usize) -> Box<Self> {
+        match depth {
+            0 => self,
+            _ => self
+                .unpeel_children()
+                .into_iter()
+                .next()
+                .unwrap()
+                .move_follow_line(depth - 1),
         }
     }
     pub fn unpeel_children(self) -> Vec<Box<AstNode>> {
