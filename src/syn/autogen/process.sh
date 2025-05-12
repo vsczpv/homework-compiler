@@ -3,7 +3,6 @@
 RAW=$( \
 	./extract_table.sh source.html /dev/stderr 2>&1 >/dev/null \
 		| tail -n +2 \
-		| head -n -1 \
 		| sed  -e 's/\&lt\;/\</g'   -e 's/\&gt\;/\>/g' \
 		       -e 's/\-/Error/g'    -e 's/ACCEPT/Accept/g' \
 		       -e 's/SHIFT/Shift/g' -e 's/REDUCE/Reduce/g' \
