@@ -37,6 +37,7 @@ impl SemanticSymbol {
         p_lambda : bool
     ) -> SemanticSymbol {
         SemanticSymbol {
+            tipe: p_tipo,
             declarada: p_declarada,
             inicializada: p_inicializada, 
             escopo: p_escopo, 
