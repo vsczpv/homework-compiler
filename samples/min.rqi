@@ -1,3 +1,16 @@
+foo;
+foo::foo;
+for name in (0 to 5) {
+	1 + 2;
+};
+
+for azazel in (what! to how!) {
+	1;
+} yielding (1-1);
+
+while (cond) {};
+while (cond) { yield 3; };
+while (cond) { 1 + 2; } yielding (3);
 
 let res = 1 + if (cond) {
 	yield 1;

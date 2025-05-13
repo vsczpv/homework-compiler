@@ -149,6 +149,8 @@ pub enum Virtual {
     Ident,
     IfExpr,
     IfExprMore,
+    WhileExpr,
+    ForExpr { ident: String },
 }
 
 #[derive(Debug, Clone)]
@@ -313,5 +315,19 @@ impl AstNode {
         } else {
             false
         }
+    }
+    pub fn move_shuffle_n_transform(
+        &mut self,
+        operations: &[(usize, &dyn Fn(Box<AstNode>) -> Box<AstNode>)],
+    ) -> () {
+        let mut new_vec = Vec::new();
+        for (which, oper) in operations {
+            let kid = std::mem::replace(
+                &mut self.children[*which],
+                AstNode::new(NodeKind::default()),
+            );
+            new_vec.push(oper(kid));
+        }
+        self.children = new_vec;
     }
 }

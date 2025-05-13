@@ -45,22 +45,29 @@ const GENERICIZE_EXPRESSIONS: PreprocessKind = Infallible(|mut node| {
 const UNPARENTHETIZE: PreprocessKind = Infallible(|mut node| {
     if node.is_expression() && node.get_children().len() == 3 {
         #[rustfmt::skip]
-        let cond: bool =
-            match node.get_children()[0].get_kind() {
-                NodeKind::Lex(lex) => lex.get_token() == Token::OpenPar,
-                _ => false,
-            } &
-            node.get_children()[1].is_expression() &
-            match node.get_children()[2].get_kind() {
-                NodeKind::Lex(lex) => lex.get_token() == Token::ClosePar,
-                _ => false,
-            };
+        let cond =
+            node.get_children()[0]
+                .get_kind()
+                .to_owned()
+                .some_lex()
+                .is_some_and(|l| l.get_token() == Token::OpenPar) &
+
+            node.get_children()[1]
+                .is_expression() &
+
+            node.get_children()[2]
+                .get_kind()
+                .to_owned()
+                .some_lex()
+                .is_some_and(|l| l.get_token() == Token::ClosePar);
+
         if cond {
             let child = node.unpeel_children().into_iter().nth(1).unwrap();
             node = AstNode::new(NodeKind::Virt(Virtual::GenericExpression));
             node.add_child(child);
         }
-    };
+    }
+
     return node;
 });
 
@@ -98,26 +105,16 @@ const PROXY_TERM_REDUCTION: PreprocessKind = Infallible(|mut node| {
         && node.get_children().len() == 1
     {
         let mut newnode = AstNode::new(NodeKind::Virt(Virtual::WrappedTerm));
-        let child = node
-            .unpeel_children()
-            .into_iter()
-            .nth(0)
-            .unwrap()
-            .unpeel_children()
-            .into_iter()
-            .nth(0)
-            .unwrap();
+
+        let child = node.move_follow_line(2);
 
         newnode.add_child(child);
         node = newnode;
     } else if matches!(node.get_kind(), NodeKind::Non(NonTerminal::Term)) {
         let mut newnode = AstNode::new(NodeKind::Virt(Virtual::WrappedTerm));
-        #[rustfmt::skip]
-        let child = node
-            .unpeel_children()
-            .into_iter()
-            .nth(0)
-            .unwrap();
+
+        let child = node.move_follow_line(1);
+
         newnode.add_child(child);
         node = newnode;
     }
@@ -542,7 +539,84 @@ const ACCEPT_IFEXPR: PreprocessKind = Infallible(|mut node| {
     return node;
 });
 
-pub const PREPROCESSES: [PreprocessKind; 18] = [
+const ACCEPT_WHILEEXPR: PreprocessKind = Infallible(|mut node| {
+    if matches!(node.get_kind(), NodeKind::Non(NonTerminal::WhileExpr)) {
+        node.get_children_mut()
+            .retain(|n| !matches!(n.get_kind(), NodeKind::Lex(_)));
+
+        node.morph(NodeKind::Virt(Virtual::WhileExpr));
+        if node.get_children().len() == 3 {
+            assert!(matches!(
+                node.get_children()[2].get_kind(),
+                NodeKind::Non(NonTerminal::MaybeYield)
+            ));
+            let myield = &mut node.get_children_mut()[2];
+            if myield.get_children().len() == 0 {
+                node.get_children_mut().remove(2);
+            } else {
+                myield
+                    .get_children_mut()
+                    .retain(|n| n.get_kind().to_owned().some_lex().is_none());
+                node.move_shuffle_n_transform(&[
+                    (0, &|n| n),
+                    (1, &|n| n),
+                    (2, &|n| n.move_follow_line(1)),
+                ]);
+            }
+        }
+    }
+    return node;
+});
+
+const ACCEPT_FOREXPR: PreprocessKind = Fallible(|mut node| {
+    if matches!(node.get_kind(), NodeKind::Non(NonTerminal::ForExpr)) {
+        node.get_children_mut()
+            .retain(|n| n.get_kind().to_owned().some_lex().is_none());
+
+        let idn = &node.get_children()[0];
+
+        assert!(matches!(idn.get_kind(), NodeKind::Virt(Virtual::Ident)));
+        if idn.get_children().len() != 1 {
+            return Err(AstPreprocessingError(
+                "Identifier in for expression must be non-namespaced.".into(),
+                Lexeme::default(),
+            ));
+        }
+
+        let ident = idn
+            .follow_line(1)
+            .get_kind()
+            .to_owned()
+            .some_lex()
+            .unwrap()
+            .get_token()
+            .some_identifier()
+            .unwrap()
+            .clone();
+
+        node.morph(NodeKind::Virt(Virtual::ForExpr { ident: ident }));
+        node.get_children_mut().remove(0);
+
+        let myield = &mut node.get_children_mut()[3];
+
+        if myield.get_children().len() == 0 {
+            node.get_children_mut().remove(3);
+        } else {
+            myield
+                .get_children_mut()
+                .retain(|n| n.get_kind().to_owned().some_lex().is_none());
+            node.move_shuffle_n_transform(&[
+                (0, &|n| n),
+                (1, &|n| n),
+                (2, &|n| n),
+                (3, &|n| n.move_follow_line(1)),
+            ]);
+        }
+    }
+    return Ok(node);
+});
+
+pub const PREPROCESSES: [PreprocessKind; 20] = [
     GENERICIZE_EXPRESSIONS,
     UNPARENTHETIZE,
     UNPARENTHETIZE_VALUE,
@@ -561,4 +635,6 @@ pub const PREPROCESSES: [PreprocessKind; 18] = [
     PARSE_LAMBDA,
     REDUCE_SCOPEITEM,
     ACCEPT_IFEXPR,
+    ACCEPT_WHILEEXPR,
+    ACCEPT_FOREXPR,
 ];
