@@ -133,8 +133,16 @@ impl From<u16> for NonTerminal {
 pub enum Virtual {
     GenericExpression,
     GenericExpressionList,
-    LetBinding { ident: String, defined: bool },
-    ConstBinding { ident: String, defined: bool },
+    LetBinding {
+        ident: String,
+        defined: bool,
+        typed: bool,
+    },
+    ConstBinding {
+        ident: String,
+        defined: bool,
+        typed: bool,
+    },
     LetBindingGroup,
     ConstBindingGroup,
     WrappedTerm,
@@ -142,15 +150,21 @@ pub enum Virtual {
     Scope,
     Return,
     Yield,
-    Namespace { ident: String },
+    Namespace {
+        ident: String,
+    },
     LambdaRoot,
     LambdaSignature,
-    LambdaTypeVarPair { ident: String },
+    LambdaTypeVarPair {
+        ident: String,
+    },
     Ident,
     IfExpr,
     IfExprMore,
     WhileExpr,
-    ForExpr { ident: String },
+    ForExpr {
+        ident: String,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -276,6 +290,23 @@ impl AstNode {
                 .move_follow_line(depth - 1),
         }
     }
+    pub fn follow_line2(self: &Box<Self>, depth: usize, direction: usize) -> &Box<Self> {
+        match depth {
+            0 => self,
+            _ => self.children[direction].follow_line2(depth - 1, direction),
+        }
+    }
+    pub fn move_follow_line2(self: Box<Self>, depth: usize, direction: usize) -> Box<Self> {
+        match depth {
+            0 => self,
+            _ => self
+                .unpeel_children()
+                .into_iter()
+                .nth(direction)
+                .unwrap()
+                .move_follow_line2(depth - 1, direction),
+        }
+    }
     pub fn unpeel_children(self) -> Vec<Box<AstNode>> {
         self.children
     }
@@ -315,6 +346,9 @@ impl AstNode {
         } else {
             false
         }
+    }
+    pub fn is_application(&self) -> bool {
+        matches!(self.get_kind(), NodeKind::Virt(Virtual::Application))
     }
     pub fn move_shuffle_n_transform(
         &mut self,

@@ -94,6 +94,13 @@ pub enum Token {
 }
 
 impl Token {
+    pub fn is_typeexpect(&self) -> bool {
+        if let Token::TypeExpect = self.clone() {
+            return true;
+        } else {
+            return false;
+        }
+    }
     pub fn is_identifier(&self) -> bool {
         if let Token::Identifier(_) = self.clone() {
             return true;

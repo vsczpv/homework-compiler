@@ -253,10 +253,78 @@ macro_rules! declarm {
 
         let mut bindlist: Vec<Box<AstNode>> = Vec::new();
         for bind in bindings {
-            let defined = bind.get_children().len() != 1;
+            if bind.get_children().len() == 1 {
+                return Err(AstPreprocessingError(
+                    "Bare let statements are not allowed.".into(),
+                    errlex.clone(),
+                ));
+            }
+
+            let (defined, typed) = match bind.get_children()[1].get_kind() {
+                NodeKind::Non(NonTerminal::OptrA) => (
+                    true,
+                    bind.get_children()[0].get_children().len() == 3
+                        && bind.get_children()[0].get_children()[1]
+                            .get_kind()
+                            .to_owned()
+                            .some_lex()
+                            .is_some(),
+                ),
+                NodeKind::Lex(_) => (false, true),
+                _ => panic!("Invalid preprocessing state."),
+            };
+
+            let idepth = match (defined, typed) {
+                /*
+                    expr
+                        expr
+                            expr
+                                wrapped
+                                    ident
+                                        Ident
+                            spec
+                            type
+                        optra
+                        expr
+                */
+                (true, true) => 5,
+                /*
+                    expr
+                        expr
+                            wrapped
+                                ident
+                                    ident
+                        optra
+                        expr
+                */
+                (true, false) => 4,
+                /*
+                    expr
+                        expr
+                            wrapped
+                                ident
+                                    ident
+                        spec
+                        type
+                */
+                (false, true) => 4,
+                (false, false) => {
+                    return Err(AstPreprocessingError(
+                        "Declaration with no type and no value are forbidden.".into(),
+                        errlex.to_owned(),
+                    ))
+                }
+            };
+
+            if bind.follow_line2(idepth - 1, 0).get_children().len() != 1 {
+                return Err(AstPreprocessingError(
+                    "First element of a binding must be a non-namespaced identifier.".into(),
+                    errlex.to_owned(),
+                ));
+            }
 
             let ident = bind
-                .follow_line(if defined { 4 } else { 3 })
+                .follow_line2(idepth, 0)
                 .get_kind()
                 .to_owned()
                 .some_lex()
@@ -272,45 +340,43 @@ macro_rules! declarm {
                     errlex.clone(),
                 ))?;
 
-            /* Very hacky test for namespaced idents. */
-            if bind
-                .follow_line(if defined { 3 } else { 2 })
-                .get_children()
-                .len()
-                != 1
-            {
-                bind.follow_line(if defined { 3 } else { 2 }).print_tree(1);
-                return Err(AstPreprocessingError(
-                    "First element of a binding must be a non-namespaced identifier.".into(),
-                    errlex.clone(),
-                ));
-            };
-            let mut letbinding = AstNode::new(NodeKind::Virt(Virtual::$b { ident, defined }));
+            let mut letbinding = AstNode::new(NodeKind::Virt(Virtual::$b {
+                ident,
+                defined,
+                typed,
+            }));
 
             if defined {
-                /* TODO: Use actual application check */
-                if bind.follow_line(2).get_children().len() != 1 {
+                if bind.follow_line(2).is_application() {
                     return Err(AstPreprocessingError(
                         "Function application disallowed on left-hand side of binding.".into(),
                         errlex.clone(),
                     ));
                 }
-                let valid = bind.get_children()[1]
-                    .get_kind()
-                    .to_owned()
-                    .some_non()
-                    .map_or(false, |nt| matches!(nt, NonTerminal::OptrA));
+            }
 
-                if !valid {
-                    return Err(AstPreprocessingError(
-                        "Missing assignment on binding.".into(),
-                        errlex.clone(),
-                    ));
+            let mut kids = bind.unpeel_children().into_iter();
+
+            let tpe = match (defined, typed) {
+                (true, true) => Some(kids.next().unwrap().move_follow_line2(1, 2)),
+                (true, false) => {
+                    kids.next();
+                    None
                 }
+                (false, true) => Some(kids.nth(2).unwrap()),
+                (false, false) => panic!("Invalid preprocessor state."),
+            };
 
-                let expr = bind.unpeel_children().into_iter().nth(2).unwrap();
+            kids.next();
+
+            if defined {
+                let expr = kids.next().unwrap();
                 letbinding.add_child(expr);
             }
+
+            if let Some(t) = tpe {
+                letbinding.add_child(t);
+            };
 
             bindlist.push(letbinding);
         }
@@ -627,7 +693,6 @@ pub const PREPROCESSES: [PreprocessKind; 20] = [
     FLATTEN_EXPRL,
     VALUE_INTO_APPLICATION,
     REDUCE_IDENTS,
-    DECLARATIONS,
     FLATTEN_SCOPES,
     RETURN_AND_YIELD,
     NAMESPACES,
@@ -637,4 +702,5 @@ pub const PREPROCESSES: [PreprocessKind; 20] = [
     ACCEPT_IFEXPR,
     ACCEPT_WHILEEXPR,
     ACCEPT_FOREXPR,
+    DECLARATIONS,
 ];

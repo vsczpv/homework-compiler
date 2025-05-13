@@ -1,3 +1,14 @@
+
+let a = 3;
+
+let b: int = 4;
+
+let A: (int int -> int);
+
+let C = lambda a b : int int -> int {
+	return 0;
+};
+
 foo;
 foo::foo;
 for name in (0 to 5) {
@@ -81,7 +92,7 @@ let main = lambda _ : unit -> unit {
 		yield pow 2 10;
 	};
 
-	let A = 2, B, X = -74;
+	let A = 2, X = -74;
 
 	X = B = A = res;
 
