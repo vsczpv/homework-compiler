@@ -7,6 +7,8 @@ let list = array : [char; 8] {
 	1, 2, 3, 4
 };
 
+let lost = array : [[char; 4]; 4];
+
 let a = 3;
 
 let b: int = 4;

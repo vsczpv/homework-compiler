@@ -736,10 +736,13 @@ const ACCEPT_ARRAY_LIT: PreprocessKind = Infallible(|mut node| {
 const FLATTEN_LTYPES: PreprocessKind = Infallible(|mut node| {
     if matches!(node.get_kind(), NodeKind::Non(NonTerminal::LTypes)) {
         if node.get_children().len() != 1
-            && matches!(
+            && (matches!(
                 node.follow_line2(1, 1).get_kind(),
                 NodeKind::Non(NonTerminal::LTypes)
-            )
+            ) || matches!(
+                node.follow_line2(1, 1).get_kind(),
+                NodeKind::Virt(Virtual::TypeList),
+            ))
         {
             let mut newnode = AstNode::new(NodeKind::Virt(Virtual::TypeList));
             let mut children = node.unpeel_children().into_iter();

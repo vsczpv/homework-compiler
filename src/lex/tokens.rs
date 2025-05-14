@@ -125,6 +125,12 @@ impl Token {
             return false;
         }
     }
+    pub fn some_number(&self) -> Option<&ArchInt> {
+        match self {
+            Token::Number(i) => Some(i),
+            _ => None,
+        }
+    }
     pub fn is_float(&self) -> bool {
         if let Token::Float(_) = self.clone() {
             return true;

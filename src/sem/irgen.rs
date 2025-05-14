@@ -2,36 +2,15 @@
 
 use std::{collections::VecDeque, error::Error, fmt::Display};
 
+use crate::sem::types::*;
 use crate::syn::tree::*;
 
 #[derive(Debug)]
-pub enum BuiltinTypes {
-    Int,
-    Float,
-    Char,
-    Unit,
-}
-
-#[derive(Debug)]
-pub enum SymbolMajorType {
-    Builtin(BuiltinTypes),
-    Lambda {
-        args: Vec<SymbolMajorType>,
-        ret: Box<SymbolMajorType>,
-    },
-    Array {
-        elem: Box<SymbolMajorType>,
-        quant: usize,
-    },
-    Undefined,
-}
-
-#[derive(Debug)]
 pub struct Symbol {
+    ident: String,
     stype: SymbolMajorType,
     defined: bool,
     scope: usize,
-    ident: String,
 }
 
 pub struct SymbolTable {
@@ -78,6 +57,7 @@ pub struct IrGen<'a> {
     scope_stack: VecDeque<usize>,
     scope_counter: usize,
     syms: &'a mut SymbolTable,
+    last_seen_type: SymbolMajorType,
 }
 
 impl<'a> IrGen<'a> {
@@ -86,6 +66,7 @@ impl<'a> IrGen<'a> {
             scope_stack: VecDeque::new(),
             scope_counter: 0,
             syms,
+            last_seen_type: SymbolMajorType::Undefined,
         }
     }
     fn in_scope(&self, id: usize) -> bool {
@@ -136,9 +117,6 @@ impl<'a> IrGen<'a> {
             eprintln!("NOTE: Namespacing not implemented, treating as {ident}.");
         }
 
-        //        if self
-        //            .syms
-        //            .is_ident_in_scope(&ident, *self.scope_stack.back().unwrap())
         if self.search_all_scopes(&ident).is_some() {
             Ok(())
         } else {
@@ -271,12 +249,14 @@ impl<'a> IrGen<'a> {
                         }
 
                         /* TODO */
-                        if let Some(n) = btype {
-                            self.act_on(n)?;
-                        }
+                        let stype = if let Some(n) = btype {
+                            SymbolMajorType::parse_type(n)
+                        } else {
+                            SymbolMajorType::Undefined
+                        };
 
                         let newsym = Symbol {
-                            stype: SymbolMajorType::Undefined,
+                            stype,
                             defined,
                             scope: atscope,
                             ident,
