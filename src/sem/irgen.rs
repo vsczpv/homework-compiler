@@ -2,6 +2,7 @@
 
 use std::{collections::VecDeque, error::Error, fmt::Display};
 
+use crate::lex::lexer::Lexeme;
 use crate::sem::types::*;
 use crate::syn::tree::*;
 
@@ -55,6 +56,14 @@ impl SymbolTable {
             println!("{s:?}");
         }
     }
+    pub fn get(&self, ident: String) -> Option<&Symbol> {
+        for s in &self.syms {
+            if s.ident == ident {
+                return Some(s);
+            }
+        }
+        return None;
+    }
 }
 
 #[derive(Debug)]
@@ -104,6 +113,7 @@ impl<'a> IrGen<'a> {
             NodeKind::Virt(Virtual::ForExpr { ident }) => self.handle_forexpr(node, ident),
             NodeKind::Virt(Virtual::LambdaRoot) => self.handle_lambda(node),
             NodeKind::Virt(Virtual::Ident) => self.handle_ident(node),
+            NodeKind::Virt(Virtual::GenericExpression) => self.handle_expr(node),
             _ => self.generate(node),
         }
     }
@@ -113,7 +123,175 @@ impl<'a> IrGen<'a> {
         }
         Ok(())
     }
+    pub fn act_on_rev(&mut self, node: &Box<AstNode>) -> SemanticResult {
+        match node.get_kind() {
+            NodeKind::Virt(Virtual::GenericExpression) => self.handle_expr(node),
+            _ => panic!("Internal compiler error: rev on non-rev."),
+        }
+    }
+    pub fn generate_rev(&mut self, tree: &Box<AstNode>) -> SemanticResult {
+        for c in tree.get_children() {
+            self.generate_rev(tree)?;
+        }
+        self.act_on_rev(tree)
+    }
+    fn handle_expr(&mut self, node: &Box<AstNode>) -> SemanticResult {
+        let kids = node.get_children();
+        if kids.len() == 3 {
+            self.act_on(&kids[0]);
+            let ltype = self.last_seen_type.clone();
 
+            if kids[1]
+                .get_kind()
+                .to_owned()
+                .some_lex()
+                .map(|lex| lex.get_token().is_typeexpect())
+                .is_some_and(|b| b)
+            {
+                /* TODO */
+                self.last_seen_type = SymbolMajorType::parse_type(&kids[2], &self.syms);
+                eprintln!(
+                    "NOTE: Force cast from {ltype:?} to {:?}",
+                    self.last_seen_type
+                );
+                return Ok(());
+            }
+
+            self.act_on(&kids[2]);
+            let rtype = self.last_seen_type.clone();
+
+            println!("AWWA");
+            kids[0].print_tree(1);
+            kids[2].print_tree(1);
+
+            if ltype != rtype {
+                return Err(SemanticError(format!(
+                    "Type mismatch on '{ltype:?}' v. '{rtype:?}'."
+                )));
+            }
+
+            match &kids[1].get_kind() {
+                _ => self.last_seen_type = ltype,
+            };
+
+            Ok(())
+        } else if kids.len() == 2 {
+            self.generate(node);
+            self.last_seen_type = SymbolMajorType::Unknown;
+            eprintln!("NOTE: Unary operators not implemented.");
+            Ok(())
+        } else {
+            match kids[0].get_kind() {
+                NodeKind::Virt(Virtual::Application) => {
+                    self.generate(node);
+
+                    let mut tots = kids[0].get_children().iter();
+                    let callee = tots.next().unwrap();
+
+                    let idenct = callee.follow_line2(1, 0).get_children().len() - 1;
+
+                    let ident = callee
+                        .follow_line2(1, 0)
+                        .follow_line2(1, idenct)
+                        .get_kind()
+                        .to_owned()
+                        .some_lex()
+                        .unwrap()
+                        .get_token()
+                        .some_identifier()
+                        .unwrap()
+                        .clone();
+
+                    let stype = self.syms.get(ident).unwrap().stype.clone();
+
+                    self.last_seen_type = stype;
+
+                    /* TODO: Check application */
+                    /*
+                    for args in tots {
+                        todo!()
+                    }
+                    */
+                }
+                NodeKind::Virt(Virtual::WrappedTerm) => {
+                    let kd = kids[0].follow_line2(1, 0);
+                    match kd.get_kind() {
+                        NodeKind::Lex(lex) => {
+                            self.last_seen_type =
+                                SymbolMajorType::Builtin(BuiltinTypes::from_lex(lex, &self.syms));
+                        }
+                        NodeKind::Virt(Virtual::Ident) => {
+                            let ident = kd
+                                .follow_line2(1, 0)
+                                .get_kind()
+                                .to_owned()
+                                .some_lex()
+                                .unwrap()
+                                .get_token()
+                                .some_identifier()
+                                .unwrap()
+                                .clone();
+                            let sym = self
+                                .syms
+                                .get(ident)
+                                .expect("Internal compiler error: inexistent symbol {ident}.");
+                            self.last_seen_type = sym.stype.clone();
+                        }
+                        NodeKind::Virt(Virtual::LambdaRoot) => {
+                            let mut args: Vec<SymbolMajorType> = Vec::new();
+
+                            for t in kd.follow_line2(1, 0).get_children() {
+                                let t =
+                                    SymbolMajorType::parse_type(t.follow_line2(1, 0), &self.syms);
+                                args.push(t);
+                            }
+
+                            let rtype =
+                                SymbolMajorType::parse_type(&kd.get_children()[1], &self.syms);
+
+                            let stype = SymbolMajorType::Lambda {
+                                args,
+                                ret: Box::new(rtype),
+                            };
+                            /* TODO: Check lambda lit */
+                            self.generate(node);
+                            self.last_seen_type = stype;
+                        }
+                        NodeKind::Virt(Virtual::ArrayLit { filled }) => {
+                            let tpe = kd.follow_line2(1, 0);
+                            /* TODO: Check array lit */
+                            self.generate(node);
+                            self.last_seen_type = SymbolMajorType::parse_type(tpe, &self.syms);
+                        }
+                        NodeKind::Virt(Virtual::IfExpr) => {
+                            self.generate(node);
+                            /* TODO: Handle ifexpr */
+                            self.last_seen_type = SymbolMajorType::Builtin(BuiltinTypes::Unit);
+                        }
+                        NodeKind::Virt(Virtual::ForExpr { ident }) => {
+                            self.generate(node);
+                            /* TODO: Handle ifexpr */
+                            self.last_seen_type = SymbolMajorType::Builtin(BuiltinTypes::Unit);
+                        }
+                        NodeKind::Virt(Virtual::WhileExpr) => {
+                            self.generate(node);
+                            /* TODO: Handle ifexpr */
+                            self.last_seen_type = SymbolMajorType::Builtin(BuiltinTypes::Unit);
+                        }
+                        _ => {
+                            self.generate(node);
+                            self.last_seen_type = SymbolMajorType::Unknown
+                        }
+                    };
+                }
+                _ => {
+                    self.generate(node);
+                    self.last_seen_type = SymbolMajorType::Unknown
+                }
+            };
+            Ok(())
+        }
+    }
     fn handle_ident(&mut self, node: &Box<AstNode>) -> SemanticResult {
         let last = node.get_children().len() - 1;
 
@@ -162,7 +340,7 @@ impl<'a> IrGen<'a> {
 
         for c in sigs.get_children() {
             let newsym = Symbol {
-                stype: SymbolMajorType::parse_type(c.follow_line2(1, 0)),
+                stype: SymbolMajorType::parse_type(c.follow_line2(1, 0), &self.syms),
                 defined: SymbolDefinedState::Transient,
                 scope: atscope,
                 ident: c
@@ -259,15 +437,35 @@ impl<'a> IrGen<'a> {
                             None
                         };
 
-                        /* TODO */
+                        let mut stype = SymbolMajorType::Unknown;
+
                         if let Some(n) = expr {
                             self.act_on(n)?;
+                            stype = self.last_seen_type.clone();
                         }
 
-                        let stype = if let Some(n) = btype {
-                            SymbolMajorType::parse_type(n)
+                        let estype = if let Some(n) = btype {
+                            SymbolMajorType::parse_type(n, &self.syms)
                         } else {
                             SymbolMajorType::Unknown
+                        };
+
+                        if matches!(stype, SymbolMajorType::Unknown)
+                            && matches!(estype, SymbolMajorType::Unknown)
+                        {
+                            eprintln!("NOTE: Symbol with no type.");
+                        }
+
+                        if matches!(stype, SymbolMajorType::Unknown) {
+                            stype = estype;
+                        } else {
+                            if !matches!(estype, SymbolMajorType::Unknown) {
+                                if stype != estype {
+                                    return Err(SemanticError(format!(
+                                        "Confliction type for bind '{ident}'"
+                                    )));
+                                }
+                            }
                         };
 
                         let newsym = Symbol {
