@@ -2,8 +2,6 @@ use crate::lex::lexer::Lexeme;
 use crate::syn::preprocess::*;
 use std::ops::Range;
 
-use super::preprocess;
-
 #[derive(Debug, Copy, Clone)]
 #[repr(u16)]
 pub enum NonTerminal {
@@ -165,6 +163,16 @@ pub enum Virtual {
     ForExpr {
         ident: String,
     },
+    Type,
+    TypeArray,
+    ArrayLit {
+        filled: bool,
+    },
+    TypeList,
+    TypeLambda,
+    Optr,
+    OptrPrefix,
+    OptrPostfix,
 }
 
 #[derive(Debug, Clone)]
@@ -309,6 +317,21 @@ impl AstNode {
     }
     pub fn unpeel_children(self) -> Vec<Box<AstNode>> {
         self.children
+    }
+    pub fn is_operator(&self) -> bool {
+        if let NodeKind::Non(kd) = self.get_kind() {
+            match kd {
+                NonTerminal::OptrA
+                | NonTerminal::Optr4
+                | NonTerminal::Optr3
+                | NonTerminal::Optr2
+                | NonTerminal::Optr1
+                | NonTerminal::Optr0 => true,
+                _ => false,
+            }
+        } else {
+            false
+        }
     }
     pub fn is_nonterminal_expression(&self) -> bool {
         if let NodeKind::Non(kd) = self.get_kind() {

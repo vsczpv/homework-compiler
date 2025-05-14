@@ -1,4 +1,14 @@
 
+let test: (int float unit int -> [char; 4]);
+
+let list: [char; 8];
+
+let list = array : [char; 8] {
+	1, 2, 3, 4
+};
+
+let list = array : [char; 8];
+
 let a = 3;
 
 let b: int = 4;

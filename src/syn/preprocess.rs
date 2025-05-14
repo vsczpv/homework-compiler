@@ -682,7 +682,126 @@ const ACCEPT_FOREXPR: PreprocessKind = Fallible(|mut node| {
     return Ok(node);
 });
 
-pub const PREPROCESSES: [PreprocessKind; 20] = [
+const ACCEPT_TYPES: PreprocessKind = Infallible(|mut node| {
+    if matches!(node.get_kind(), NodeKind::Non(NonTerminal::Type)) {
+        if matches!(
+            node.follow_line(1).get_kind(),
+            NodeKind::Non(NonTerminal::BuiltinTypes)
+        ) {
+            node = node.move_follow_line(1);
+            node.morph(NodeKind::Virt(Virtual::Type));
+        } else if matches!(
+            node.follow_line(1).get_kind(),
+            NodeKind::Non(NonTerminal::ArrayType)
+        ) {
+            node = node.move_follow_line(1);
+            node.morph(NodeKind::Virt(Virtual::TypeArray));
+            node.get_children_mut()
+                .retain(|n| n.get_kind().to_owned().some_lex().is_none());
+        }
+    }
+    return node;
+});
+
+const ACCEPT_ARRAY_LIT: PreprocessKind = Infallible(|mut node| {
+    if matches!(node.get_kind(), NodeKind::Non(NonTerminal::Array)) {
+        node.get_children_mut()
+            .retain(|n| n.get_kind().to_owned().some_lex().is_none());
+        node.move_shuffle_n_transform(&[
+            (0, &|mut n| {
+                n.morph(NodeKind::Virt(Virtual::TypeArray));
+                n.get_children_mut()
+                    .retain(|n| n.get_kind().to_owned().some_lex().is_none());
+                n
+            }),
+            (1, &|mut n| {
+                if n.get_children().len() != 0 {
+                    n.get_children_mut()
+                        .retain(|m| m.get_kind().to_owned().some_lex().is_none());
+                    n = n.move_follow_line(2);
+                }
+                n
+            }),
+        ]);
+        if node.follow_line2(1, 1).get_children().len() == 0 {
+            node.get_children_mut().remove(1);
+            node.morph(NodeKind::Virt(Virtual::ArrayLit { filled: false }))
+        } else {
+            node.morph(NodeKind::Virt(Virtual::ArrayLit { filled: true }))
+        }
+    }
+    return node;
+});
+
+const FLATTEN_LTYPES: PreprocessKind = Infallible(|mut node| {
+    if matches!(node.get_kind(), NodeKind::Non(NonTerminal::LTypes)) {
+        if node.get_children().len() != 1
+            && matches!(
+                node.follow_line2(1, 1).get_kind(),
+                NodeKind::Non(NonTerminal::LTypes)
+            )
+        {
+            let mut newnode = AstNode::new(NodeKind::Virt(Virtual::TypeList));
+            let mut children = node.unpeel_children().into_iter();
+
+            let head = children.next().unwrap();
+            let tail = children.next().unwrap();
+
+            newnode.add_child(head);
+
+            for c in tail.unpeel_children() {
+                newnode.add_child(c);
+            }
+
+            node = newnode;
+        }
+    }
+    return node;
+});
+
+const ACCEPT_LTYPE: PreprocessKind = Infallible(|mut node| {
+    if matches!(node.get_kind(), NodeKind::Non(NonTerminal::Type)) {
+        if node.get_children().len() == 3
+            && node
+                .follow_line2(1, 0)
+                .get_kind()
+                .to_owned()
+                .some_lex()
+                .is_some()
+            && node
+                .follow_line2(1, 1)
+                .get_kind()
+                .to_owned()
+                .some_non()
+                .is_some()
+            && node
+                .follow_line2(1, 2)
+                .get_kind()
+                .to_owned()
+                .some_lex()
+                .is_some()
+        {
+            node = node.move_follow_line2(1, 1);
+            node.morph(NodeKind::Virt(Virtual::TypeLambda));
+            node.get_children_mut()
+                .retain(|n| n.get_kind().to_owned().some_lex().is_none());
+        }
+    }
+    return node;
+});
+
+const ACCEPT_OPTR: PreprocessKind = Infallible(|mut node| {
+    if node.is_operator() {
+        node.morph(NodeKind::Virt(Virtual::Optr));
+    } else if matches!(node.get_kind(), NodeKind::Non(NonTerminal::Prefix)) {
+        node.morph(NodeKind::Virt(Virtual::OptrPrefix));
+    } else if matches!(node.get_kind(), NodeKind::Non(NonTerminal::Postfix)) {
+        node.morph(NodeKind::Virt(Virtual::OptrPostfix));
+    }
+    return node;
+});
+
+pub const PREPROCESSES: [PreprocessKind; 25] = [
     GENERICIZE_EXPRESSIONS,
     UNPARENTHETIZE,
     UNPARENTHETIZE_VALUE,
@@ -703,4 +822,9 @@ pub const PREPROCESSES: [PreprocessKind; 20] = [
     ACCEPT_WHILEEXPR,
     ACCEPT_FOREXPR,
     DECLARATIONS,
+    ACCEPT_TYPES,
+    ACCEPT_ARRAY_LIT,
+    FLATTEN_LTYPES,
+    ACCEPT_LTYPE,
+    ACCEPT_OPTR,
 ];
