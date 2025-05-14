@@ -4,9 +4,11 @@ use std::error::Error;
 
 mod common;
 mod lex;
+mod sem;
 mod syn;
 
 use lex::lexer::Lexer;
+use sem::irgen::{IrGen, SymbolTable};
 use syn::syntax::SyntaxParser;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -20,9 +22,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let syn = SyntaxParser::new(lexemes)
         .parse()?
-        .try_apply_many(&syn::preprocess::PREPROCESSES)?;
+        .try_apply_many(&syn::preprocess::PREPROCESSES)?
+        .make_root();
 
-    syn.print_tree(0);
+    let mut symbols = SymbolTable::new();
+    IrGen::new(&mut symbols).generate(&syn)?;
+
+    symbols.print();
 
     return Ok(());
 }

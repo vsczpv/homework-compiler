@@ -129,6 +129,7 @@ impl From<u16> for NonTerminal {
 #[allow(unused)]
 #[derive(Debug, Clone)]
 pub enum Virtual {
+    AstRoot,
     GenericExpression,
     GenericExpressionList,
     LetBinding {
@@ -373,6 +374,22 @@ impl AstNode {
     pub fn is_application(&self) -> bool {
         matches!(self.get_kind(), NodeKind::Virt(Virtual::Application))
     }
+    #[allow(unused)]
+    pub fn is_bind(&self) -> bool {
+        match self.get_kind().to_owned().some_virt() {
+            Some(Virtual::LetBinding {
+                ident,
+                defined,
+                typed,
+            }) => true,
+            Some(Virtual::ConstBinding {
+                ident,
+                defined,
+                typed,
+            }) => true,
+            _ => false,
+        }
+    }
     pub fn move_shuffle_n_transform(
         &mut self,
         operations: &[(usize, &dyn Fn(Box<AstNode>) -> Box<AstNode>)],
@@ -386,5 +403,10 @@ impl AstNode {
             new_vec.push(oper(kid));
         }
         self.children = new_vec;
+    }
+    pub fn make_root(self: Box<Self>) -> Box<Self> {
+        let mut newroot = AstNode::new(NodeKind::Virt(Virtual::AstRoot));
+        newroot.add_child(self);
+        return newroot;
     }
 }

@@ -81,6 +81,9 @@ pub enum Token {
 
     Unit, /* !                      */
 
+    //    TypeBool, /* bool */
+    //    True,
+    //    False,
     Identifier(String), /* /[a-zA-Z_][a-zA-Z_0-9]+/ */
     Number(ArchInt),    /* /\d+/                  */
     Float(ArchFloat),   /* /\d+\.?\d*|\.\d+/ */
@@ -94,6 +97,7 @@ pub enum Token {
 }
 
 impl Token {
+    #[allow(unused)]
     pub fn is_typeexpect(&self) -> bool {
         if let Token::TypeExpect = self.clone() {
             return true;
@@ -239,6 +243,9 @@ impl Token {
             Token::OrOptr => 62,
             Token::AssignOptr => 63,
             Token::Unit => 64,
+            //            Token::TypeBool => 65,
+            //            Token::True => 66,
+            //            Token::False => 67,
             Token::Identifier(_) => 65,
             Token::Number(_) => 66,
             Token::Float(_) => 67,
@@ -349,6 +356,9 @@ pub const TOKEN_RULES: [(Token, &str, &str); TOKEN_AMNT] = [
     rule!(OrOptr, "oroptr", r"\bor\b"),
     rule!(AssignOptr, "assignoptr", r"="),
     rule!(Unit, "unit", r"!"),
+//    rule!(TypeBool, "typebool", r"\bbool\b"),
+//    rule!(True, "true", r"\btrue\b"),
+//    rule!(False, "false", r"\bfalse\b"),
     (
         Token::Identifier(String::new()),
         "identifier",
