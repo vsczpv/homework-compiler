@@ -6,10 +6,26 @@ use crate::sem::types::*;
 use crate::syn::tree::*;
 
 #[derive(Debug)]
+pub enum SymbolDefinedState {
+    Defined,
+    Undefined,
+    Transient,
+}
+
+impl From<bool> for SymbolDefinedState {
+    fn from(value: bool) -> Self {
+        match value {
+            true => Self::Defined,
+            false => Self::Undefined,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct Symbol {
     ident: String,
     stype: SymbolMajorType,
-    defined: bool,
+    defined: SymbolDefinedState,
     scope: usize,
 }
 
@@ -66,7 +82,7 @@ impl<'a> IrGen<'a> {
             scope_stack: VecDeque::new(),
             scope_counter: 0,
             syms,
-            last_seen_type: SymbolMajorType::Undefined,
+            last_seen_type: SymbolMajorType::Unknown,
         }
     }
     fn in_scope(&self, id: usize) -> bool {
@@ -146,8 +162,8 @@ impl<'a> IrGen<'a> {
 
         for c in sigs.get_children() {
             let newsym = Symbol {
-                stype: SymbolMajorType::Undefined,
-                defined: false, // TODO,
+                stype: SymbolMajorType::parse_type(c.follow_line2(1, 0)),
+                defined: SymbolDefinedState::Transient,
                 scope: atscope,
                 ident: c
                     .get_kind()
@@ -185,7 +201,7 @@ impl<'a> IrGen<'a> {
 
         let newsym = Symbol {
             stype: SymbolMajorType::Builtin(BuiltinTypes::Int),
-            defined: false, // TODO
+            defined: SymbolDefinedState::Transient,
             scope: atscope,
             ident: ident.to_owned(),
         };
@@ -248,16 +264,15 @@ impl<'a> IrGen<'a> {
                             self.act_on(n)?;
                         }
 
-                        /* TODO */
                         let stype = if let Some(n) = btype {
                             SymbolMajorType::parse_type(n)
                         } else {
-                            SymbolMajorType::Undefined
+                            SymbolMajorType::Unknown
                         };
 
                         let newsym = Symbol {
                             stype,
-                            defined,
+                            defined: SymbolDefinedState::from(defined),
                             scope: atscope,
                             ident,
                         };

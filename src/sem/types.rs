@@ -25,7 +25,7 @@ pub enum SymbolMajorType {
         elem: Box<SymbolMajorType>,
         quant: usize,
     },
-    Undefined,
+    Unknown,
 }
 
 impl BuiltinTypes {
