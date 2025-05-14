@@ -1,4 +1,6 @@
 
+let token = 1;
+
 let test: (int float unit int -> [char; 4]);
 
 let list: [char; 8];
