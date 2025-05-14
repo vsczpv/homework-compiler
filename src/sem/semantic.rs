@@ -3,11 +3,38 @@
 use crate::lex::tokens;
 use crate::lex::tokens::Token;
 
+enum SemanticAction {
+    openScope,
+    closeScope,
+    finishStatement,
+    returnStatement,
+    yieldStatement,
+
+    declareVariable,       // let ## x = y (se o segundo lado for valor normal)
+    declareLambda,         // let ## x = lambda (se o segundo lado for uma lambda)
+    declareArray,          // let ## x = array (se o segundo lado for um array)
+    declareConstantValue,  // const ## x = y (se o segundo lado for valor normal)
+    declareConstantLambda, // const ## x = lambda (se o segundo lado for uma lambda)
+    declareConstantArray,  // const ## x = array (se o segundo lado for um array)
+    
+    declareNamespace, // namespace ## x {}
+    separateWithComma, // x ##, y
+
+    assign, // x # = y
+    logicExpression,
+    bitwiseExpression,
+    shift,
+    sum_sub,
+    mult_div,
+    cast,
+    
+    openParenthesis,
+    closeParenthesis,
+
+}
 
 struct Semantic {
-    semanticTable : SemanticTable,
-    scopeStack    : Vec<i32>,
-    scopeCount    : i32
+    semanticTable : SemanticTable
 }
 
 impl Semantic {
@@ -15,42 +42,19 @@ impl Semantic {
         
     }
     // Funções complementares ===========---------------===================--------------------======================-------------------------==========================--------------------------=========================
-    fn is_in_scope(&self, variable: &SemanticSymbol) -> bool { // Verifica se a variável está no escopo
-        for scope in scopeStack[..] {
-            if variable.scope == scope { return true }
-        }
-    }
-    fn is_in_scope(&self, id : &str) -> bool { // Verifica se a variável está no escopo
-        let symbol = self.semanticTable.getSymbol(id);
-        if symbol.is_none() { return false }
-        is_in_scope(symbol.unwrap());
-    }
+    
 
-
-    fn value_is_valid(value: &SemanticSymbol) {
-        return is_in_scope(&value) && value.declarada() && value.inicializada();
-    }
 
 
     // Ações Semânticas ===========---------------===================--------------------======================-------------------------==========================--------------------------=========================
     fn openScope(&mut self) {
-        self.scopeCount += 1;
-        self.scopeStack.push(self.scopeCount);
+        self.semanticTable.scopeStack.push(Scope::new());
     }
     fn closeScope(&mut self) {
-        self.scopeStack.pop();
+        self.semanticTable.scopeStack.pop();
     }
 
-    fn variable_declaration(&mut self, tokens: Vec<(&Token, &Lexeme)>) {
-
-    }
-    fn lambda_declaration(&mut self, tokens: Vec<(&Token, &Lexeme)>) {
-
-    }
-    fn array_declaration(&mut self, tokens: Vec<(&Token, &Lexeme)>) {
-
-    }
-    fn declaracao(&mut self, tokens: Vec<(&Token, &Lexeme)>) {
+    /*fn declaracao(&mut self, tokens: Vec<(&Token, &Lexeme)>) {
         if tokens.len() < 3 { error("Declaração de variável inválida") };
         if tokens[0].get_token() != Token::LetBinding { error("Declaração não iniciada com 'let'") };
         if tokens[1].get_token() != Token::Identifier { error("Tentativa de declarar em algo inválido") };
@@ -61,10 +65,35 @@ impl Semantic {
             Token::Array      => self.array_declaration(tokens),
             _                 => error("Declaração sem valor")
         }
-    }
+    }*/
 
 
     // Identifica Ação Semântica ===========---------------===================--------------------======================-------------------------==========================--------------------------=========================
-    fn identificar_acao_semantica(&mut self, tokens: Vec<(&Token, &Lexeme)>) {
+    fn identificar_acao_semantica(&mut self, node: &AstNode) {
+        let kind = node.get_kind();
+        match kind {
+            NodeKind::Lex(lexeme) => {
+                match lexeme.get_token() {
+
+                }
+
+            }
+            NodeKind::NonTerminal(nt) => {
+                match nt {
+                }
+            }
+            NodeKind::Virtual(v) => {
+                match v {
+                    
+                }
+            }
+            _ => {}
+        }
+
+        for child in node.get_children() {
+            self.identificar_acao_semantica(child);
+        }
+
+
     }
 }
