@@ -98,6 +98,20 @@ pub enum Token {
 
 impl Token {
     #[allow(unused)]
+    pub fn is_logicoptr(&self) -> bool {
+        match self {
+            Token::GteOptr
+            | Token::LteOptr
+            | Token::GtOptr
+            | Token::LtOptr
+            | Token::EqualsOptr
+            | Token::NeqOptr
+            | Token::NotOptr
+            | Token::AndOptr
+            | Token::OrOptr => true,
+            _ => false,
+        }
+    }
     pub fn is_typeexpect(&self) -> bool {
         if let Token::TypeExpect = self.clone() {
             return true;
@@ -370,13 +384,15 @@ pub const TOKEN_RULES: [(Token, &str, &str); TOKEN_AMNT] = [
         "identifier",
         r"(?P<identifier>[a-zA-Z_][a-zA-Z0-9_]*)|",
     ),
+    /* out of order!!!! */
+    (Token::Float(0f64),     "float",     r"(?P<float>\d+\.\d+|\.\d+)|"),
     (Token::Number(0),       "number",    r"(?P<number>\d+)|"),
-    (Token::Float(0f64),     "float",     r"(?P<float>\d+\.?\d*|\.\d+)|"),
     (Token::CharLiter('\0'), "charliter", r"(?P<charliter>\'[^\']\'|\'\\[^\']\')|"),
     (
         Token::StringLiter(String::new()),
         "stringliter",
-        "(?P<stringliter> \"\"|\"(\\\"|[^\"]+)+\" )|"
+//        "(?P<stringliter>\"\"|\"(\\\"|[^\"]+)+\" )|"
+        "(?<stringliter>\"\"|\"(\\\"|[^\"])+\")|"
     ),
     rule!(Newline, "newline", r"\n"),
     rule!(Whitespace, "whitespace", r"\s"),

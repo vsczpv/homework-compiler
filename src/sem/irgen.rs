@@ -3,6 +3,7 @@
 use std::{collections::VecDeque, error::Error, fmt::Display};
 
 use crate::lex::lexer::Lexeme;
+use crate::lex::tokens::Token;
 use crate::sem::types::*;
 use crate::syn::tree::*;
 
@@ -160,10 +161,6 @@ impl<'a> IrGen<'a> {
             self.act_on(&kids[2]);
             let rtype = self.last_seen_type.clone();
 
-            println!("AWWA");
-            kids[0].print_tree(1);
-            kids[2].print_tree(1);
-
             if ltype != rtype {
                 return Err(SemanticError(format!(
                     "Type mismatch on '{ltype:?}' v. '{rtype:?}'."
@@ -176,9 +173,31 @@ impl<'a> IrGen<'a> {
 
             Ok(())
         } else if kids.len() == 2 {
-            self.generate(node);
-            self.last_seen_type = SymbolMajorType::Unknown;
-            eprintln!("NOTE: Unary operators not implemented.");
+            let right_hand = if kids[0].is_unary_optr() {
+                self.generate(&kids[1]);
+                false
+            } else {
+                self.generate(&kids[0]);
+                true
+            };
+
+            let rtype = self.last_seen_type.clone();
+
+            if right_hand {
+                if matches!(kids[1].get_kind(), NodeKind::Virt(Virtual::Brack)) {
+                    match rtype {
+                        SymbolMajorType::Array { elem, quant } => {
+                            self.last_seen_type = *elem.clone()
+                        }
+                        _ => {
+                            return Err(SemanticError(format!(
+                            "Bracket operator can only be used on arrays, got '{rtype:?}' instead."
+                        )))
+                        }
+                    }
+                }
+            }
+
             Ok(())
         } else {
             match kids[0].get_kind() {
@@ -188,7 +207,14 @@ impl<'a> IrGen<'a> {
                     let mut tots = kids[0].get_children().iter();
                     let callee = tots.next().unwrap();
 
-                    let idenct = callee.follow_line2(1, 0).get_children().len() - 1;
+                    let idenct = callee
+                        .follow_line2(1, 0)
+                        .get_children()
+                        .len()
+                        .checked_sub(1)
+                        .ok_or(SemanticError(format!(
+                            "Identifier expected on application."
+                        )))?;
 
                     let ident = callee
                         .follow_line2(1, 0)
@@ -217,8 +243,7 @@ impl<'a> IrGen<'a> {
                     let kd = kids[0].follow_line2(1, 0);
                     match kd.get_kind() {
                         NodeKind::Lex(lex) => {
-                            self.last_seen_type =
-                                SymbolMajorType::Builtin(BuiltinTypes::from_lex(lex, &self.syms));
+                            self.last_seen_type = SymbolMajorType::from_lex(lex, &self.syms);
                         }
                         NodeKind::Virt(Virtual::Ident) => {
                             let ident = kd
@@ -312,6 +337,7 @@ impl<'a> IrGen<'a> {
         }
 
         if self.search_all_scopes(&ident).is_some() {
+            self.last_seen_type = self.syms.get(ident).unwrap().stype.clone();
             Ok(())
         } else {
             self.syms.print();

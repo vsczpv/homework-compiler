@@ -174,6 +174,7 @@ pub enum Virtual {
     Optr,
     OptrPrefix,
     OptrPostfix,
+    Brack,
 }
 
 #[derive(Debug, Clone)]
@@ -387,6 +388,12 @@ impl AstNode {
                 defined,
                 typed,
             }) => true,
+            _ => false,
+        }
+    }
+    pub fn is_unary_optr(&self) -> bool {
+        match self.get_kind().to_owned().some_virt().unwrap() {
+            Virtual::Brack | Virtual::OptrPrefix | Virtual::OptrPostfix => true,
             _ => false,
         }
     }

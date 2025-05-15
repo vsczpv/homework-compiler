@@ -7,6 +7,22 @@ let list = array : [char; 8] {
 	1, 2, 3, 4
 };
 
+let mybeaty: char = 'g';
+
+let myvar = "ahako\"fea\n";
+
+let thethethe = 1.57;
+
+let ras = token++;
+let ris = myvar[0];
+
+let wawawawawa = not 0;
+let omegaresult = 1 and 2 or 4;
+
+//let wawa = 'c' * 1.57 + 3;
+let result = 66.3 == 55.7;
+
+
 let lost = array : [[char; 4]; 4];
 
 let a = 3;

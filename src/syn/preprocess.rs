@@ -804,7 +804,16 @@ const ACCEPT_OPTR: PreprocessKind = Infallible(|mut node| {
     return node;
 });
 
-pub const PREPROCESSES: [PreprocessKind; 25] = [
+const ACCEPT_BRACK: PreprocessKind = Infallible(|mut node| {
+    if matches!(node.get_kind(), NodeKind::Non(NonTerminal::Brack)) {
+        node.get_children_mut()
+            .retain(|n| n.get_kind().to_owned().some_lex().is_none());
+        node.morph(NodeKind::Virt(Virtual::Brack));
+    }
+    return node;
+});
+
+pub const PREPROCESSES: [PreprocessKind; 26] = [
     GENERICIZE_EXPRESSIONS,
     UNPARENTHETIZE,
     UNPARENTHETIZE_VALUE,
@@ -830,4 +839,5 @@ pub const PREPROCESSES: [PreprocessKind; 25] = [
     FLATTEN_LTYPES,
     ACCEPT_LTYPE,
     ACCEPT_OPTR,
+    ACCEPT_BRACK,
 ];

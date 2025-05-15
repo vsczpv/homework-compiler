@@ -87,28 +87,30 @@ impl PartialEq for SymbolMajorType {
     }
 }
 
-impl BuiltinTypes {
-    pub fn from_lex(lex: &Lexeme, syms: &SymbolTable) -> Self {
-        match lex.get_token() {
-            Token::TypeInt => Self::Int,
-            Token::TypeFloat => Self::Float,
-            Token::TypeChar => Self::Char,
-            Token::TypeUnit => Self::Unit,
-            Token::Number(_) => Self::Int,
-            Token::Float(_) => Self::Float,
-            Token::CharLiter(_) => Self::Char,
-            Token::StringLiter(_) => todo!("arrays arent working yet"),
-            Token::Unit => Self::Unit,
-            _ => panic!("Internal compiler error: expected typable."),
-        }
-    }
-}
+impl BuiltinTypes {}
 
 /*
 <value> ::= <term> <value> | <term> OPENPAR <expr_l> CLOSEPAR <value> | <term> OPENPAR <expr_l> CLOSEPAR | <term>;
 <term>  ::= NUMBER | FLOAT | <ident> | CHARLITER | STRINGLITER | UNIT | <lambda> | <array> | <ifexpr> | <whileexpr> | <forexpr> ;
 */
 impl SymbolMajorType {
+    pub fn from_lex(lex: &Lexeme, syms: &SymbolTable) -> Self {
+        match lex.get_token() {
+            Token::TypeInt => Self::Builtin(BuiltinTypes::Int),
+            Token::TypeFloat => Self::Builtin(BuiltinTypes::Float),
+            Token::TypeChar => Self::Builtin(BuiltinTypes::Char),
+            Token::TypeUnit => Self::Builtin(BuiltinTypes::Unit),
+            Token::Number(_) => Self::Builtin(BuiltinTypes::Int),
+            Token::Float(_) => Self::Builtin(BuiltinTypes::Float),
+            Token::CharLiter(_) => Self::Builtin(BuiltinTypes::Char),
+            Token::StringLiter(str) => Self::Array {
+                elem: Box::new(SymbolMajorType::Builtin(BuiltinTypes::Char)),
+                quant: str.len(),
+            },
+            Token::Unit => Self::Builtin(BuiltinTypes::Unit),
+            _ => panic!("Internal compiler error: expected typable."),
+        }
+    }
     pub fn parse_literal(node: &Box<AstNode>) -> Self {
         todo!()
     }
@@ -140,7 +142,7 @@ impl SymbolMajorType {
                     .to_owned()
                     .some_lex()
                     .expect("Internal compiler error: expected lex");
-                Self::Builtin(BuiltinTypes::from_lex(&lex, syms))
+                Self::from_lex(&lex, syms)
             }
             Virtual::TypeArray => {
                 let kids = node.get_children();

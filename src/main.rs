@@ -26,8 +26,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         .make_root();
 
     let mut symbols = SymbolTable::new();
-    IrGen::new(&mut symbols).generate(&syn)?;
 
+    IrGen::new(&mut symbols).generate(&syn)?;
     symbols.print();
 
     return Ok(());
