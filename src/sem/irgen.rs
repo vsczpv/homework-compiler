@@ -25,10 +25,11 @@ impl From<bool> for SymbolDefinedState {
 
 #[derive(Debug)]
 pub struct Symbol {
-    ident: String,
-    stype: SymbolMajorType,
-    defined: SymbolDefinedState,
-    scope: usize,
+    pub ident: String,
+    pub stype: SymbolMajorType,
+    pub defined: SymbolDefinedState,
+    pub scope: usize,
+    pub used: bool,
 }
 
 pub struct SymbolTable {
@@ -64,6 +65,17 @@ impl SymbolTable {
             }
         }
         return None;
+    }
+    pub fn get_mut(&mut self, ident: String) -> Option<&mut Symbol> {
+        for s in &mut self.syms {
+            if s.ident == ident {
+                return Some(s);
+            }
+        }
+        return None;
+    }
+    pub fn all_syms(&self) -> &Vec<Symbol> {
+        &self.syms
     }
 }
 
@@ -246,21 +258,7 @@ impl<'a> IrGen<'a> {
                             self.last_seen_type = SymbolMajorType::from_lex(lex, &self.syms);
                         }
                         NodeKind::Virt(Virtual::Ident) => {
-                            let ident = kd
-                                .follow_line2(1, 0)
-                                .get_kind()
-                                .to_owned()
-                                .some_lex()
-                                .unwrap()
-                                .get_token()
-                                .some_identifier()
-                                .unwrap()
-                                .clone();
-                            let sym = self
-                                .syms
-                                .get(ident)
-                                .expect("Internal compiler error: inexistent symbol {ident}.");
-                            self.last_seen_type = sym.stype.clone();
+                            self.handle_ident(kd)?;
                         }
                         NodeKind::Virt(Virtual::LambdaRoot) => {
                             let mut args: Vec<SymbolMajorType> = Vec::new();
@@ -337,10 +335,18 @@ impl<'a> IrGen<'a> {
         }
 
         if self.search_all_scopes(&ident).is_some() {
-            self.last_seen_type = self.syms.get(ident).unwrap().stype.clone();
+            let sm = self.syms.get_mut(ident.clone()).unwrap();
+
+            if matches!(sm.defined, SymbolDefinedState::Undefined) {
+                eprintln!("warning: use of uninitialized symbol {ident}.");
+            }
+
+            self.last_seen_type = sm.stype.clone();
+
+            sm.used = true;
+
             Ok(())
         } else {
-            self.syms.print();
             Err(SemanticError(format!("Undeclared symbol '{ident}'.")))
         }
     }
@@ -378,6 +384,7 @@ impl<'a> IrGen<'a> {
                         _ => None,
                     })
                     .unwrap(),
+                used: false,
             };
 
             if self.syms.is_ident_in_scope(&newsym.ident, atscope) {
@@ -408,6 +415,7 @@ impl<'a> IrGen<'a> {
             defined: SymbolDefinedState::Transient,
             scope: atscope,
             ident: ident.to_owned(),
+            used: false,
         };
 
         self.syms.add(newsym);
@@ -424,7 +432,7 @@ impl<'a> IrGen<'a> {
         self.act_on(body)?;
 
         if let Some(n) = myield {
-            self.act_on(n)?
+            self.generate(n)?
         };
 
         self.scope_stack.pop_back();
@@ -488,7 +496,7 @@ impl<'a> IrGen<'a> {
                             if !matches!(estype, SymbolMajorType::Unknown) {
                                 if stype != estype {
                                     return Err(SemanticError(format!(
-                                        "Confliction type for bind '{ident}'"
+                                        "Conflicting type for bind '{ident}',  '{stype:?}' v. '{estype:?}'"
                                     )));
                                 }
                             }
@@ -499,6 +507,7 @@ impl<'a> IrGen<'a> {
                             defined: SymbolDefinedState::from(defined),
                             scope: atscope,
                             ident,
+                            used: false,
                         };
 
                         self.syms.add(newsym);

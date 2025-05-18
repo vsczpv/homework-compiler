@@ -8,11 +8,11 @@ mod sem;
 mod syn;
 
 use lex::lexer::Lexer;
-use sem::irgen::{IrGen, SymbolTable};
+use sem::irgen::{IrGen, SymbolDefinedState, SymbolTable};
 use syn::syntax::SyntaxParser;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let input = std::fs::read_to_string("samples/min.rqi")?;
+    let input = std::fs::read_to_string("samples/other.l")?;
 
     let lexemes = Lexer::new()
         .tokenize(input)?
@@ -29,6 +29,16 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     IrGen::new(&mut symbols).generate(&syn)?;
     symbols.print();
+
+    for s in symbols.all_syms() {
+        if matches!(s.defined, SymbolDefinedState::Undefined) {
+            eprintln!("warning: symbol '{}' never defined.", s.ident);
+        }
+
+        if s.used == false {
+            eprintln!("warning: symbol '{}' never used.", s.ident);
+        }
+    }
 
     return Ok(());
 }
