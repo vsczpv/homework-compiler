@@ -794,17 +794,53 @@ const ACCEPT_LTYPE: PreprocessKind = Infallible(|mut node| {
 });
 
 const ACCEPT_OPTR: PreprocessKind = Infallible(|mut node| {
-    if node.is_operator() {
-        node.morph(NodeKind::Virt(Virtual::Optr));
-    } else if matches!(node.get_kind(), NodeKind::Non(NonTerminal::Prefix)) {
-        node.morph(NodeKind::Virt(Virtual::OptrPrefix));
-    } else if matches!(node.get_kind(), NodeKind::Non(NonTerminal::Postfix)) {
-        node.morph(NodeKind::Virt(Virtual::OptrPostfix));
+    if let NodeKind::Lex(l) = node.get_kind().to_owned() {
+        if l.get_token().is_logicoptr() || l.get_token().is_bitwiseoptr() {
+            let mut newnode = AstNode::new(NodeKind::Virt(Virtual::Optr));
+            newnode.add_child(node);
+            return newnode;
+        }
+    } else {
+        if node.is_operator() {
+            node.morph(NodeKind::Virt(Virtual::Optr));
+        } else if matches!(node.get_kind(), NodeKind::Non(NonTerminal::Prefix)) {
+            node.morph(NodeKind::Virt(Virtual::OptrPrefix));
+        } else if matches!(node.get_kind(), NodeKind::Non(NonTerminal::Postfix)) {
+            node.morph(NodeKind::Virt(Virtual::OptrPostfix));
+        }
     }
     return node;
 });
 
-pub const PREPROCESSES: [PreprocessKind; 25] = [
+const UNPARENTHETIZE_EXPRL: PreprocessKind = Infallible(|mut node| {
+    if let NodeKind::Virt(Virtual::GenericExpression) = node.get_kind().to_owned() {
+        if node.get_children().len() == 3 {
+            let kids = node.get_children();
+            if kids[0]
+                .get_kind()
+                .to_owned()
+                .some_lex()
+                .is_some_and(|l| matches!(l.get_token(), Token::OpenPar))
+                && kids[1]
+                    .get_kind()
+                    .to_owned()
+                    .some_virt()
+                    .is_some_and(|v| matches!(v, Virtual::GenericExpressionList))
+                && kids[2]
+                    .get_kind()
+                    .to_owned()
+                    .some_lex()
+                    .is_some_and(|l| matches!(l.get_token(), Token::ClosePar))
+            {
+                node.get_children_mut()
+                    .retain(|n| n.get_kind().to_owned().some_virt().is_some());
+            }
+        }
+    };
+    return node;
+});
+
+pub const PREPROCESSES: [PreprocessKind; 26] = [
     GENERICIZE_EXPRESSIONS,
     UNPARENTHETIZE,
     UNPARENTHETIZE_VALUE,
@@ -830,4 +866,5 @@ pub const PREPROCESSES: [PreprocessKind; 25] = [
     FLATTEN_LTYPES,
     ACCEPT_LTYPE,
     ACCEPT_OPTR,
+    UNPARENTHETIZE_EXPRL,
 ];

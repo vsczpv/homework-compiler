@@ -8,14 +8,11 @@ mod sem;
 mod syn;
 
 use lex::lexer::Lexer;
-use sem::{
-    symtab::{SymbolTable, SymtabGenerator},
-    typechk::TypeChecker,
-};
+use sem::symtab::{SymbolTable, SymtabGenerator};
 use syn::syntax::SyntaxParser;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let input = std::fs::read_to_string("samples/min.rqi")?;
+    let input = std::fs::read_to_string("samples/target.l")?;
 
     let lexemes = Lexer::new()
         .tokenize(input)?
@@ -29,13 +26,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         .make_root();
 
     let mut symbols = SymbolTable::new();
-    SymtabGenerator::new(&mut symbols).generate(&syn)?;
+    let typetree = SymtabGenerator::new(&mut symbols).generate(syn)?;
 
-    let typetree = TypeChecker::new(&mut symbols).typecheck(syn);
-
-    //    typetree.print_tree(1);
-    //
     symbols.print();
+    typetree.print_tree(1);
 
     return Ok(());
 }

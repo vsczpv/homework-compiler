@@ -232,6 +232,16 @@ pub struct AstNode {
     children: Vec<Box<AstNode>>,
 }
 
+impl Clone for Box<AstNode> {
+    fn clone(&self) -> Self {
+        let mut newnode = AstNode::new(self.get_kind().to_owned());
+        for c in self.get_children().iter() {
+            newnode.add_child(c.clone());
+        }
+        newnode
+    }
+}
+
 impl AstNode {
     pub fn new(kind: NodeKind) -> Box<Self> {
         Box::new(AstNode {

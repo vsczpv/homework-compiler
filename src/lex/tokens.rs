@@ -112,6 +112,12 @@ impl Token {
             _ => false,
         }
     }
+    pub fn is_bitwiseoptr(&self) -> bool {
+        match self {
+            Token::BitAndOptr | Token::BitOrOptr | Token::BitXorOptr => true,
+            _ => false,
+        }
+    }
     pub fn is_typeexpect(&self) -> bool {
         if let Token::TypeExpect = self.clone() {
             return true;
