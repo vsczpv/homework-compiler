@@ -385,7 +385,7 @@ pub const TOKEN_RULES: [(Token, &str, &str); TOKEN_AMNT] = [
         r"(?P<identifier>[a-zA-Z_][a-zA-Z0-9_]*)|",
     ),
     /* out of order!!!! */
-    (Token::Float(0f64),     "float",     r"(?P<float>\d+\.?\d*|\.\d+)|"),
+    (Token::Float(0f64),     "float",     r"(?P<float>\d+\.\d+|\.\d+)|"),
     (Token::Number(0),       "number",    r"(?P<number>\d+)|"),
     (Token::CharLiter('\0'), "charliter", r"(?P<charliter>\'[^\']\'|\'\\[^\']\')|"),
     (

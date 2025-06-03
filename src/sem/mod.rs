@@ -1,1 +1,2 @@
-pub mod irgen;
+pub mod symtab;
+pub mod typechk;

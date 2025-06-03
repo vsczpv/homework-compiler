@@ -1,4 +1,5 @@
 use crate::lex::lexer::Lexeme;
+use crate::sem::typechk::*;
 use crate::syn::preprocess::*;
 use std::ops::Range;
 
@@ -181,9 +182,16 @@ pub enum NodeKind {
     Lex(Lexeme),
     Non(NonTerminal),
     Virt(Virtual),
+    TypedVirt(Virtual, SymbolMajorType),
 }
 
 impl NodeKind {
+    pub fn entype(self, tp: SymbolMajorType) -> Self {
+        match self {
+            Self::Virt(v) => Self::TypedVirt(v, tp),
+            _ => panic!(),
+        }
+    }
     pub fn some_lex(self) -> Option<Lexeme> {
         match self {
             NodeKind::Lex(lexeme) => Some(lexeme),

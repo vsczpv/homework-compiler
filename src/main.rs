@@ -8,7 +8,10 @@ mod sem;
 mod syn;
 
 use lex::lexer::Lexer;
-use sem::irgen::{IrGen, SymbolTable};
+use sem::{
+    symtab::{SymbolTable, SymtabGenerator},
+    typechk::TypeChecker,
+};
 use syn::syntax::SyntaxParser;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -26,8 +29,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         .make_root();
 
     let mut symbols = SymbolTable::new();
-    IrGen::new(&mut symbols).generate(&syn)?;
+    SymtabGenerator::new(&mut symbols).generate(&syn)?;
 
+    let typetree = TypeChecker::new(&mut symbols).typecheck(syn);
+
+    //    typetree.print_tree(1);
+    //
     symbols.print();
 
     return Ok(());
