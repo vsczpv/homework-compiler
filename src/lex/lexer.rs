@@ -32,6 +32,20 @@ pub struct Lexer {
     lexemes: Vec<Lexeme>,
 }
 
+impl Default for Lexeme {
+    fn default() -> Self {
+        Lexeme::new(
+            Token::DOLLAR,
+            Range {
+                start: usize::MAX,
+                end: usize::MAX,
+            },
+            usize::MAX,
+            usize::MAX,
+        )
+    }
+}
+
 impl Lexeme {
     pub fn new(token_kind: Token, range: Range<usize>, line: usize, col: usize) -> Self {
         Lexeme {
@@ -99,9 +113,44 @@ impl Lexer {
             } else if token.is_float() {
                 Token::Float(mtch.1.as_str().parse::<ArchFloat>().unwrap())
             } else if token.is_charliter() {
-                todo!()
+                let mut chr = String::from(mtch.1.as_str()).split_off(1);
+                if chr.chars().nth(0).unwrap() == '\\' {
+                    chr.truncate(2);
+                    chr = match chr.as_str() {
+                        "\\n" => String::from(0xau8 as char),
+                        "\\\"" => String::from('"'),
+                        _ => return Err(LexError("Invalid escape character.".into())),
+                    }
+                } else {
+                    chr.truncate(1);
+                }
+                Token::CharLiter(chr.parse::<ArchCharLiter>().unwrap())
             } else if token.is_stringliter() {
-                todo!()
+                let mut chr = String::from(mtch.1.as_str());
+
+                if chr.len() == 2 {
+                    Token::StringLiter("".into())
+                } else {
+                    chr = chr.split_off(1);
+                    chr.truncate(chr.len() - 1);
+                    let mut chrit = chr.chars().peekable();
+                    let mut res = String::new();
+                    while chrit.peek().is_some() {
+                        let car = chrit.next().unwrap();
+                        if car == '\\' {
+                            let ocar = chrit.next().unwrap();
+                            let ocar = match ocar {
+                                'n' => 0xau8 as char,
+                                '"' => '"',
+                                _ => return Err(LexError("Invalid escape character.".into())),
+                            };
+                            res.push(ocar);
+                        } else {
+                            res.push(car);
+                        }
+                    }
+                    Token::StringLiter(res)
+                }
             } else {
                 token
             };
@@ -112,15 +161,7 @@ impl Lexer {
             col += col_to_add;
         }
 
-        self.lexemes.push(Lexeme::new(
-            Token::DOLLAR,
-            Range {
-                start: usize::MAX,
-                end: usize::MAX,
-            },
-            usize::MAX,
-            usize::MAX,
-        ));
+        self.lexemes.push(Lexeme::default());
 
         Ok(self.lexemes)
     }

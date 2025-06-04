@@ -1,4 +1,5 @@
 use crate::lex::lexer::Lexeme;
+use crate::sem::typechk::*;
 use crate::syn::preprocess::*;
 use std::ops::Range;
 
@@ -126,9 +127,57 @@ impl From<u16> for NonTerminal {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[allow(unused)]
+#[derive(Debug, Clone)]
 pub enum Virtual {
+    AstRoot,
     GenericExpression,
+    GenericExpressionList,
+    LetBinding {
+        ident: String,
+        defined: bool,
+        typed: bool,
+        generation: Option<usize>,
+    },
+    ConstBinding {
+        ident: String,
+        defined: bool,
+        typed: bool,
+        generation: Option<usize>,
+    },
+    LetBindingGroup,
+    ConstBindingGroup,
+    WrappedTerm,
+    Application,
+    Scope,
+    Return,
+    Yield,
+    Namespace {
+        ident: String,
+    },
+    LambdaRoot,
+    LambdaSignature,
+    LambdaTypeVarPair {
+        ident: String,
+    },
+    Ident,
+    IfExpr,
+    IfExprMore,
+    WhileExpr,
+    ForExpr {
+        ident: String,
+    },
+    Type,
+    TypeArray,
+    ArrayLit {
+        filled: bool,
+    },
+    TypeList,
+    TypeLambda,
+    Optr,
+    OptrPrefix,
+    OptrPostfix,
+    Brack,
 }
 
 #[derive(Debug, Clone)]
@@ -136,6 +185,34 @@ pub enum NodeKind {
     Lex(Lexeme),
     Non(NonTerminal),
     Virt(Virtual),
+    TypedVirt(Virtual, ValueKind),
+}
+
+impl NodeKind {
+    pub fn entype(self, tp: ValueKind) -> Self {
+        match self {
+            Self::Virt(v) => Self::TypedVirt(v, tp),
+            _ => panic!(),
+        }
+    }
+    pub fn some_lex(self) -> Option<Lexeme> {
+        match self {
+            NodeKind::Lex(lexeme) => Some(lexeme),
+            _ => None,
+        }
+    }
+    pub fn some_non(self) -> Option<NonTerminal> {
+        match self {
+            NodeKind::Non(nt) => Some(nt),
+            _ => None,
+        }
+    }
+    pub fn some_virt(self) -> Option<Virtual> {
+        match self {
+            NodeKind::Virt(virt) => Some(virt),
+            _ => None,
+        }
+    }
 }
 
 impl Default for NodeKind {
@@ -158,6 +235,16 @@ pub struct AstNode {
     children: Vec<Box<AstNode>>,
 }
 
+impl Clone for Box<AstNode> {
+    fn clone(&self) -> Self {
+        let mut newnode = AstNode::new(self.get_kind().to_owned());
+        for c in self.get_children().iter() {
+            newnode.add_child(c.clone());
+        }
+        newnode
+    }
+}
+
 impl AstNode {
     pub fn new(kind: NodeKind) -> Box<Self> {
         Box::new(AstNode {
@@ -165,21 +252,29 @@ impl AstNode {
             children: Vec::default(),
         })
     }
-    pub fn apply_many(mut self: Box<Self>, processes: &[PreprocessClosure]) -> Box<Self> {
+    pub fn try_apply_many(
+        mut self: Box<Self>,
+        processes: &[PreprocessKind],
+    ) -> Result<Box<Self>, AstPreprocessingError> {
         for p in processes {
-            self = self.apply(p);
+            match p {
+                PreprocessKind::Infallible(proc) => {
+                    self = self.try_apply(|node| Ok(proc(node))).unwrap()
+                }
+                PreprocessKind::Fallible(proc) => self = self.try_apply(proc)?,
+            }
         }
-        return self;
+        return Ok(self);
     }
-    pub fn apply<F>(self: Box<Self>, transform: F) -> Box<Self>
+    pub fn try_apply<F>(self: Box<Self>, transform: F) -> Result<Box<Self>, AstPreprocessingError>
     where
-        F: Fn(Box<Self>) -> Box<Self> + Copy + Clone,
+        F: Fn(Box<Self>) -> Result<Box<Self>, AstPreprocessingError> + Copy + Clone,
     {
         let mut newnode = AstNode::new(self.get_kind().clone());
         let children = self.unpeel_children();
 
         for c in children {
-            newnode.add_child(c.apply(transform));
+            newnode.add_child(c.try_apply(transform)?);
         }
 
         return transform(newnode);
@@ -205,8 +300,60 @@ impl AstNode {
     pub fn get_children(&self) -> &Vec<Box<AstNode>> {
         &self.children
     }
+    pub fn get_children_mut(&mut self) -> &mut Vec<Box<AstNode>> {
+        &mut self.children
+    }
+    pub fn follow_line<'a>(self: &'a Box<Self>, depth: usize) -> &'a Box<Self> {
+        match depth {
+            0 => self,
+            _ => self.children[0].follow_line(depth - 1),
+        }
+    }
+    pub fn move_follow_line(self: Box<Self>, depth: usize) -> Box<Self> {
+        match depth {
+            0 => self,
+            _ => self
+                .unpeel_children()
+                .into_iter()
+                .next()
+                .unwrap()
+                .move_follow_line(depth - 1),
+        }
+    }
+    pub fn follow_line2(self: &Box<Self>, depth: usize, direction: usize) -> &Box<Self> {
+        match depth {
+            0 => self,
+            _ => self.children[direction].follow_line2(depth - 1, direction),
+        }
+    }
+    pub fn move_follow_line2(self: Box<Self>, depth: usize, direction: usize) -> Box<Self> {
+        match depth {
+            0 => self,
+            _ => self
+                .unpeel_children()
+                .into_iter()
+                .nth(direction)
+                .unwrap()
+                .move_follow_line2(depth - 1, direction),
+        }
+    }
     pub fn unpeel_children(self) -> Vec<Box<AstNode>> {
         self.children
+    }
+    pub fn is_operator(&self) -> bool {
+        if let NodeKind::Non(kd) = self.get_kind() {
+            match kd {
+                NonTerminal::OptrA
+                | NonTerminal::Optr4
+                | NonTerminal::Optr3
+                | NonTerminal::Optr2
+                | NonTerminal::Optr1
+                | NonTerminal::Optr0 => true,
+                _ => false,
+            }
+        } else {
+            false
+        }
     }
     pub fn is_nonterminal_expression(&self) -> bool {
         if let NodeKind::Non(kd) = self.get_kind() {
@@ -244,5 +391,45 @@ impl AstNode {
         } else {
             false
         }
+    }
+    pub fn is_application(&self) -> bool {
+        matches!(self.get_kind(), NodeKind::Virt(Virtual::Application))
+    }
+    #[allow(unused)]
+    pub fn is_bind(&self) -> bool {
+        match self.get_kind().to_owned().some_virt() {
+            Some(Virtual::LetBinding {
+                ident,
+                defined,
+                typed,
+                generation,
+            }) => true,
+            Some(Virtual::ConstBinding {
+                ident,
+                defined,
+                typed,
+                generation,
+            }) => true,
+            _ => false,
+        }
+    }
+    pub fn move_shuffle_n_transform(
+        &mut self,
+        operations: &[(usize, &dyn Fn(Box<AstNode>) -> Box<AstNode>)],
+    ) -> () {
+        let mut new_vec = Vec::new();
+        for (which, oper) in operations {
+            let kid = std::mem::replace(
+                &mut self.children[*which],
+                AstNode::new(NodeKind::default()),
+            );
+            new_vec.push(oper(kid));
+        }
+        self.children = new_vec;
+    }
+    pub fn make_root(self: Box<Self>) -> Box<Self> {
+        let mut newroot = AstNode::new(NodeKind::Virt(Virtual::AstRoot));
+        newroot.add_child(self);
+        return newroot;
     }
 }

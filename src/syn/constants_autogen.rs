@@ -2,7 +2,7 @@ use crate::syn::syntax::*;
 use crate::syn::syntax::ParserStateAction::*;
 /* One extra for EOF */
 pub const PARSER_TOKEN_CT: usize = 70usize;
-pub const PARSER_STATE_CT: usize = 198usize;
+pub const PARSER_STATE_CT: usize = 199usize;
 #[rustfmt::skip]
 pub const PARSER_TABLE: [[ParserStateAction; PARSER_TOKEN_CT]; PARSER_STATE_CT] = [
 	[Error,Error,Error,Shift(18),Shift(14),Shift(15),Shift(55),Shift(57),Error,Shift(58),Shift(59),Error,Shift(17),Shift(16),Shift(56),Error,Error,Error,Error,Error,Error,Shift(31),Error,Shift(12),Error,Error,Error,Error,Error,Error,Error,Error,Shift(35),Shift(36),Error,Error,Error,Error,Error,Error,Error,Error,Error,Shift(37),Shift(38),Error,Error,Error,Error,Shift(40),Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Shift(39),Error,Error,Error,Shift(48),Shift(54),Shift(43),Shift(44),Shift(46),Shift(47),],
@@ -203,6 +203,7 @@ pub const PARSER_TABLE: [[ParserStateAction; PARSER_TOKEN_CT]; PARSER_STATE_CT] 
 	[Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Shift(12),Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,],
 	[Error,Error,Error,Error,Error,Error,Reduce(124),Reduce(124),Error,Reduce(124),Reduce(124),Error,Error,Error,Reduce(124),Error,Error,Error,Error,Error,Error,Reduce(124),Reduce(124),Error,Reduce(124),Reduce(124),Reduce(124),Error,Reduce(124),Reduce(124),Reduce(124),Reduce(124),Reduce(124),Reduce(124),Reduce(124),Reduce(124),Reduce(124),Reduce(124),Reduce(124),Reduce(124),Reduce(124),Reduce(124),Reduce(124),Reduce(124),Reduce(124),Reduce(124),Reduce(124),Reduce(124),Reduce(124),Error,Reduce(124),Reduce(124),Reduce(124),Reduce(124),Reduce(124),Reduce(124),Reduce(124),Reduce(124),Reduce(124),Reduce(124),Error,Reduce(124),Reduce(124),Reduce(124),Reduce(124),Reduce(124),Reduce(124),Reduce(124),Reduce(124),Reduce(124),],
 	[Error,Error,Error,Error,Error,Error,Reduce(125),Reduce(125),Error,Reduce(125),Reduce(125),Shift(187),Error,Error,Reduce(125),Error,Error,Error,Error,Error,Error,Reduce(125),Reduce(125),Error,Reduce(125),Reduce(125),Reduce(125),Error,Reduce(125),Reduce(125),Reduce(125),Reduce(125),Reduce(125),Reduce(125),Reduce(125),Reduce(125),Reduce(125),Reduce(125),Reduce(125),Reduce(125),Reduce(125),Reduce(125),Reduce(125),Reduce(125),Reduce(125),Reduce(125),Reduce(125),Reduce(125),Reduce(125),Error,Reduce(125),Reduce(125),Reduce(125),Reduce(125),Reduce(125),Reduce(125),Reduce(125),Reduce(125),Reduce(125),Reduce(125),Error,Reduce(125),Reduce(125),Reduce(125),Reduce(125),Reduce(125),Reduce(125),Reduce(125),Reduce(125),Reduce(125),],
+	[Error,Error,Error,Error,Error,Error,Reduce(123),Reduce(123),Error,Reduce(123),Reduce(123),Error,Error,Error,Reduce(123),Error,Error,Error,Error,Error,Error,Reduce(123),Reduce(123),Error,Reduce(123),Reduce(123),Reduce(123),Error,Reduce(123),Reduce(123),Reduce(123),Reduce(123),Reduce(123),Reduce(123),Reduce(123),Reduce(123),Reduce(123),Reduce(123),Reduce(123),Reduce(123),Reduce(123),Reduce(123),Reduce(123),Reduce(123),Reduce(123),Reduce(123),Reduce(123),Reduce(123),Reduce(123),Error,Reduce(123),Reduce(123),Reduce(123),Reduce(123),Reduce(123),Reduce(123),Reduce(123),Reduce(123),Reduce(123),Reduce(123),Error,Reduce(123),Reduce(123),Reduce(123),Reduce(123),Reduce(123),Reduce(123),Reduce(123),Reduce(123),Reduce(123),],
 ];
 
 pub const PARSER_GOTOTABLE_CT: usize = 54usize;
@@ -406,6 +407,7 @@ pub const GOTO_TABLE: [[Option<ParserState>; PARSER_GOTOTABLE_CT]; PARSER_STATE_
 	[None,Some(197),None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,],
 	[None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,],
 	[None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,Some(198),None,],
+	[None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,None,],
 
 ];
 

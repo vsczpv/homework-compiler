@@ -81,6 +81,9 @@ pub enum Token {
 
     Unit, /* !                      */
 
+    //    TypeBool, /* bool */
+    //    True,
+    //    False,
     Identifier(String), /* /[a-zA-Z_][a-zA-Z_0-9]+/ */
     Number(ArchInt),    /* /\d+/                  */
     Float(ArchFloat),   /* /\d+\.?\d*|\.\d+/ */
@@ -93,7 +96,35 @@ pub enum Token {
     EverythingElse,
 }
 
+#[allow(unused)]
 impl Token {
+    pub fn is_logicoptr(&self) -> bool {
+        match self {
+            Token::GteOptr
+            | Token::LteOptr
+            | Token::GtOptr
+            | Token::LtOptr
+            | Token::EqualsOptr
+            | Token::NeqOptr
+            | Token::NotOptr
+            | Token::AndOptr
+            | Token::OrOptr => true,
+            _ => false,
+        }
+    }
+    pub fn is_bitwiseoptr(&self) -> bool {
+        match self {
+            Token::BitAndOptr | Token::BitOrOptr | Token::BitXorOptr => true,
+            _ => false,
+        }
+    }
+    pub fn is_typeexpect(&self) -> bool {
+        if let Token::TypeExpect = self.clone() {
+            return true;
+        } else {
+            return false;
+        }
+    }
     pub fn is_identifier(&self) -> bool {
         if let Token::Identifier(_) = self.clone() {
             return true;
@@ -101,11 +132,23 @@ impl Token {
             return false;
         }
     }
+    pub fn some_identifier(&self) -> Option<&String> {
+        match self {
+            Token::Identifier(s) => Some(s),
+            _ => None,
+        }
+    }
     pub fn is_number(&self) -> bool {
         if let Token::Number(_) = self.clone() {
             return true;
         } else {
             return false;
+        }
+    }
+    pub fn some_number(&self) -> Option<&ArchInt> {
+        match self {
+            Token::Number(i) => Some(i),
+            _ => None,
         }
     }
     pub fn is_float(&self) -> bool {
@@ -226,6 +269,9 @@ impl Token {
             Token::OrOptr => 62,
             Token::AssignOptr => 63,
             Token::Unit => 64,
+            //            Token::TypeBool => 65,
+            //            Token::True => 66,
+            //            Token::False => 67,
             Token::Identifier(_) => 65,
             Token::Number(_) => 66,
             Token::Float(_) => 67,
@@ -274,22 +320,22 @@ pub fn rules_as_single_string() -> String {
 pub const TOKEN_RULES: [(Token, &str, &str); TOKEN_AMNT] = [
     rule!(MultilineComment, "multilinecomment", r"\/\*([^\*]|\*+[^\*\/])*\*+\/"),
     rule!(Comment, "comment", r"\/\/.+\n"),
-    rule!(Namespace, "namespace", r"namespace"),
-    rule!(LetBinding, "letbinding", r"let"),
-    rule!(ConstBinding, "constbinding", r"const"),
-    rule!(Lambda, "lambda", r"lambda"),
-    rule!(IfStmt, "ifstmt", r"if"),
-    rule!(ElseStmt, "elsestmt", r"else"),
-    rule!(WhileLoop, "whileloop", r"while"),
-    rule!(ForLoop, "forloop", r"for"),
-    rule!(Yielding, "yielding", r"yielding"),
-    rule!(Yield, "yield", r"yield"),
-    rule!(Return, "return", r"return"),
-    rule!(Array, "array", r"array"),
-    rule!(TypeChar, "typechar", r"char"),
-    rule!(TypeFloat, "typefloat", r"float"),
-    rule!(TypeInt, "typeint", r"int"),
-    rule!(TypeUnit, "typeunit", r"unit"),
+    rule!(Namespace, "namespace", r"\bnamespace\b"),
+    rule!(LetBinding, "letbinding", r"\blet\b"),
+    rule!(ConstBinding, "constbinding", r"\bconst\b"),
+    rule!(Lambda, "lambda", r"\blambda\b"),
+    rule!(IfStmt, "ifstmt", r"\bif\b"),
+    rule!(ElseStmt, "elsestmt", r"\belse\b"),
+    rule!(WhileLoop, "whileloop", r"\bwhile\b"),
+    rule!(ForLoop, "forloop", r"\bfor\b"),
+    rule!(Yielding, "yielding", r"\byielding\b"),
+    rule!(Yield, "yield", r"\byield\b"),
+    rule!(Return, "return", r"\breturn\b"),
+    rule!(Array, "array", r"\barray\b"),
+    rule!(TypeChar, "typechar", r"\bchar\b"),
+    rule!(TypeFloat, "typefloat", r"\bfloat\b"),
+    rule!(TypeInt, "typeint", r"\bint\b"),
+    rule!(TypeUnit, "typeunit", r"\bunit\b"),
     rule!(FlIn, "flin", r"in"),
     rule!(LReturns, "lreturns", r"\->"),
     rule!(OpenPar, "openpar", r"\("),
@@ -302,7 +348,7 @@ pub const TOKEN_RULES: [(Token, &str, &str); TOKEN_AMNT] = [
     rule!(TypeExpect, "blockexpect", r"\:"),
     rule!(SemiColon, "semicolon", r"\;"),
     rule!(Colon, "colon", r"\,"),
-    rule!(Range, "range", r"to"),
+    rule!(Range, "range", r"\bto\b"),
     rule!(PlusPlusOptr, "plusplusoptr", r"\+\+"),
     rule!(MinusMinusOptr, "minusminusoptr", r"\-\-"),
     rule!(PlusEqualsOptr, "plusequalsoptr", r"\+="),
@@ -331,23 +377,27 @@ pub const TOKEN_RULES: [(Token, &str, &str); TOKEN_AMNT] = [
     rule!(LtOptr, "ltoptr", r"<"),
     rule!(EqualsOptr, "equalsoptr", r"=="),
     rule!(NeqOptr, "neqoptr", r"!="),
-    rule!(NotOptr, "notoptr", r"not"),
-    rule!(AndOptr, "andoptr", r"and"),
-    rule!(OrOptr, "oroptr", r"or"),
+    rule!(NotOptr, "notoptr", r"\bnot\b"),
+    rule!(AndOptr, "andoptr", r"\band\b"),
+    rule!(OrOptr, "oroptr", r"\bor\b"),
     rule!(AssignOptr, "assignoptr", r"="),
     rule!(Unit, "unit", r"!"),
+//    rule!(TypeBool, "typebool", r"\bbool\b"),
+//    rule!(True, "true", r"\btrue\b"),
+//    rule!(False, "false", r"\bfalse\b"),
     (
         Token::Identifier(String::new()),
         "identifier",
         r"(?P<identifier>[a-zA-Z_][a-zA-Z0-9_]*)|",
     ),
+    /* out of order!!!! */
+    (Token::Float(0f64),     "float",     r"(?P<float>\d+\.\d+|\.\d+)|"),
     (Token::Number(0),       "number",    r"(?P<number>\d+)|"),
-    (Token::Float(0f64),     "float",     r"(?P<float>\d+\.?\d*|\.\d+)|"),
     (Token::CharLiter('\0'), "charliter", r"(?P<charliter>\'[^\']\'|\'\\[^\']\')|"),
     (
         Token::StringLiter(String::new()),
         "stringliter",
-        "(?P<stringliter> \"\"|\"(\\\"|[^\"]+)+\" )|"
+        "(?<stringliter>\"\"|\"(\\\"|[^\"])+\")|"
     ),
     rule!(Newline, "newline", r"\n"),
     rule!(Whitespace, "whitespace", r"\s"),
