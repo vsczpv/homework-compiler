@@ -178,6 +178,7 @@ impl SymbolMajorType {
 
 #[derive(Debug, Clone)]
 pub enum ValueKind {
+    LvalueRef(SymbolMajorType),
     Lvalue(SymbolMajorType, usize),
     Rvalue(SymbolMajorType),
 }
@@ -185,6 +186,7 @@ pub enum ValueKind {
 impl ValueKind {
     fn inner_type(&self) -> &SymbolMajorType {
         match self {
+            Self::LvalueRef(res) => res,
             Self::Lvalue(res, _) => res,
             Self::Rvalue(res) => res,
         }

@@ -9,6 +9,7 @@ mod syn;
 
 use lex::lexer::Lexer;
 use sem::{
+    asmspit::AssemblySpitter,
     symtab::{SemanticError, SymbolTable, SymtabGenerator},
     typechk::TypeChecker,
 };
@@ -51,8 +52,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         )))?;
     }
 
-    symbols.print();
-    typetree.print_tree(1);
+    let program = AssemblySpitter::new(&symbols, &typetree)
+        .spit_defines()
+        .spit_globals()
+        .spit_global_routine()
+        .get_program();
+
+    println!("{program}");
 
     return Ok(());
 }
