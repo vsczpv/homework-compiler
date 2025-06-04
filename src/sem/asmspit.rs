@@ -33,7 +33,10 @@ impl<'a> AssemblySpitter<'a> {
         self.program += "section .bss\n";
         for symbol in self.syms.get_all_syms() {
             let name = &symbol.ident;
-            let size = ArchInt::BITS / 8; // TODO
+            let mut size = ArchInt::BITS / 8; // TODO
+            if symbol.stype.is_array() {
+                size *= symbol.stype.get_array_quant().unwrap() as u32;
+            }
             self.program += format!("\t{name}:\tresb\t{size}\n").as_str();
         }
         return self;
@@ -43,9 +46,11 @@ impl<'a> AssemblySpitter<'a> {
             node.get_kind(),
             NodeKind::TypedVirt(Virtual::GenericExpression, _)
         ) {
+            /*
             if node.get_children().len() == 2 {
                 panic!("internal compiler error: only binary operators supported.");
             }
+            */
 
             match node.get_children().len() {
                 3 => {
@@ -76,10 +81,11 @@ impl<'a> AssemblySpitter<'a> {
                     let rhstype = self.venture_expression(rhs).unwrap();
                     self.program += "\t\tmov rbx, rax\n\n\t\tpop rax\n\n";
 
+                    if matches!(lhstype, ValueKind::LvalueRef(_)) {
+                        self.program += "\n\t\tmov rax, qword [rax]\n";
+                    }
+
                     if !matches!(opr, Operator::AssignOptr) {
-                        if matches!(lhstype, ValueKind::LvalueRef(_)) {
-                            self.program += "\n\t\tmov rax, qword [rax]\n";
-                        }
                         if matches!(rhstype, ValueKind::LvalueRef(_)) {
                             self.program += "\n\t\tmov rbx, qword [rbx]\n";
                         }
@@ -111,7 +117,32 @@ impl<'a> AssemblySpitter<'a> {
                             self.program += "\t\tmov qword [rbx], rax\n\n";
                             Some(operator_check(&rhstype, &lhstype, &opr).unwrap())
                         }
+                        Operator::Brack => {
+                            self.program += "\t\tlea rax, qword [rax + rbx]\n\n";
+                            Some(operator_check(&lhstype, &rhstype, &opr).unwrap())
+                        }
                     }
+                }
+                2 => {
+                    let oprn = node.follow_line2(1, 1);
+
+                    if !matches!(oprn.get_kind(), NodeKind::Virt(Virtual::Brack)) {
+                        panic!("internal compiler error: non-brack operator");
+                    }
+
+                    let opr = Operator::Brack;
+
+                    let lhs = node.follow_line2(1, 0);
+                    let rhs = oprn.follow_line(1);
+
+                    let lhstype = self.venture_expression(lhs).unwrap();
+                    self.program += "\t\tpush rax\n\n";
+
+                    let rhstype = self.venture_expression(rhs).unwrap();
+                    self.program += "\t\tmov rbx, rax\n\n\t\tpop rax\n\n";
+
+                    self.program += "\t\tlea rax, qword [rax + rbx * 8]\n\n";
+                    Some(operator_check(&lhstype, &rhstype, &opr).unwrap())
                 }
                 1 => {
                     let kid = node.follow_line(1);

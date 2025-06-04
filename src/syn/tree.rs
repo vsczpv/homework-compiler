@@ -177,6 +177,7 @@ pub enum Virtual {
     Optr,
     OptrPrefix,
     OptrPostfix,
+    Brack,
 }
 
 #[derive(Debug, Clone)]

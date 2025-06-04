@@ -92,6 +92,24 @@ impl PartialEq for SymbolMajorType {
 }
 
 impl SymbolMajorType {
+    pub fn is_array(&self) -> bool {
+        match self {
+            Self::Array { elem, quant } => true,
+            _ => false,
+        }
+    }
+    pub fn get_array_elem(&self) -> Option<Box<SymbolMajorType>> {
+        match self {
+            Self::Array { elem, quant } => Some(elem.clone()),
+            _ => None,
+        }
+    }
+    pub fn get_array_quant(&self) -> Option<usize> {
+        match self {
+            Self::Array { elem, quant } => Some(*quant),
+            _ => None,
+        }
+    }
     pub fn from_lex(lex: &Lexeme) -> Self {
         match lex.get_token() {
             Token::TypeInt => Self::Builtin(BuiltinTypes::Int),
@@ -193,7 +211,7 @@ impl ValueKind {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Operator {
     AddOptr,
     SubOptr,
@@ -201,6 +219,7 @@ pub enum Operator {
     BitOrOptr,
     BitXorOptr,
     AssignOptr,
+    Brack,
 }
 
 impl From<Token> for Operator {
@@ -223,6 +242,7 @@ impl From<Token> for Operator {
 impl Operator {
     fn must_be_same(&self) -> bool {
         match self {
+            Self::Brack => false,
             _ => true,
         }
     }
@@ -234,6 +254,7 @@ impl Operator {
             Operator::BitOrOptr => true,
             Operator::BitXorOptr => true,
             Operator::AssignOptr => true,
+            Operator::Brack => true,
         }
     }
     fn float_capable(&self) -> bool {
@@ -244,27 +265,52 @@ impl Operator {
             Operator::BitAndOptr => false,
             Operator::BitOrOptr => false,
             Operator::BitXorOptr => false,
+            Operator::Brack => false,
         }
     }
 }
 
 pub fn operator_check(lhs: &ValueKind, rhs: &ValueKind, op: &Operator) -> Option<ValueKind> {
     let SymbolMajorType::Builtin(lhst) = lhs.inner_type() else {
-        return None;
+        if *op == Operator::Brack {
+            if !lhs.inner_type().is_array() {
+                return None;
+            }
+            let SymbolMajorType::Builtin(rhst) = rhs.inner_type() else {
+                return None;
+            };
+            if matches!(lhs, ValueKind::Lvalue(_, _)) || matches!(lhs, ValueKind::LvalueRef(_)) {
+                if !rhst.eq(&BuiltinTypes::Int) {
+                    return None;
+                }
+                let elemtp = *lhs.inner_type().get_array_elem().unwrap();
+
+                let SymbolMajorType::Builtin(elemtp) = elemtp else {
+                    return None;
+                };
+
+                return Some(ValueKind::LvalueRef(SymbolMajorType::Builtin(elemtp)));
+            } else {
+                return None;
+            }
+        } else {
+            return None;
+        }
     };
+
     let SymbolMajorType::Builtin(rhst) = rhs.inner_type() else {
         return None;
     };
 
+    if op.eq(&Operator::Brack) {
+        return None;
+    }
+
     if op.must_be_same() {
         if !rhst.eq(lhst) {
-            eprintln!("B");
             return None;
         }
-    } else {
-        todo!("a")
-    };
-
+    }
     match op {
         Operator::AssignOptr => {
             if matches!(lhs, ValueKind::Lvalue(_, _)) || matches!(lhs, ValueKind::LvalueRef(_)) {
@@ -307,9 +353,14 @@ impl<'a> TypeChecker<'a> {
         match tree.get_kind() {
             NodeKind::TypedVirt(_, tp) => {
                 if *tp.inner_type() != SymbolMajorType::Builtin(BuiltinTypes::Int) {
-                    return Err(SemanticError(format!(
-                        "type error: only ints are currently supported. (found {tp:?})"
-                    )));
+                    if !(tp.inner_type().is_array()
+                        && (*(tp.inner_type().get_array_elem().unwrap()))
+                            .eq(&SymbolMajorType::Builtin(BuiltinTypes::Int)))
+                    {
+                        return Err(SemanticError(format!(
+                            "type error: only ints and int arrays are currently supported. (found {tp:?})"
+                        )));
+                    }
                 }
             }
             _ => {}
@@ -342,8 +393,6 @@ impl<'a> TypeChecker<'a> {
         {
             if defined {
                 self.syms.print();
-                tree.print_tree(1);
-                eprintln!("{generation:?}");
                 let sym = self
                     .syms
                     .get_by_gen(generation.unwrap())
@@ -428,7 +477,38 @@ impl<'a> TypeChecker<'a> {
                     _ => todo!(),
                 },
                 2 => {
-                    todo!("internal compiler error: unary operations not yet implemented")
+                    if matches!(
+                        newnode.follow_line2(1, 1).get_kind(),
+                        NodeKind::Virt(Virtual::Brack)
+                    ) {
+                        let optr = Operator::Brack;
+
+                        let NodeKind::TypedVirt(_, source) =
+                            newnode.follow_line2(1, 0).get_kind().to_owned()
+                        else {
+                            panic!("internal compiler error: expected type of source.");
+                        };
+
+                        let NodeKind::TypedVirt(_, index) = newnode
+                            .follow_line2(1, 1)
+                            .follow_line2(1, 0)
+                            .get_kind()
+                            .to_owned()
+                        else {
+                            panic!("internal compiler error: expected type of index.");
+                        };
+
+                        if let Some(tyck) = operator_check(&source, &index, &optr) {
+                            newnode.morph(newnode.get_kind().to_owned().entype(tyck));
+                        } else {
+                            return Err(SemanticError(format!(
+                                "type error: attempt to index {:?} with {:?}",
+                                source, index
+                            )));
+                        }
+                    } else {
+                        todo!("internal compiler error: unary operations not yet implemented, except brack")
+                    }
                 }
                 3 => {
                     if newnode
