@@ -6,7 +6,10 @@ use crate::{
     syn::tree::{AstNode, NodeKind, Virtual},
 };
 
-use super::{symtab::SymbolTable, typechk::ValueKind};
+use super::{
+    symtab::SymbolTable,
+    typechk::{operator_check, ValueKind},
+};
 
 pub struct AssemblySpitter<'a> {
     program: String,
@@ -85,28 +88,28 @@ impl<'a> AssemblySpitter<'a> {
                     match opr {
                         Operator::AddOptr => {
                             self.program += "\t\tadd rax, rbx\n\n";
-                            Some(lhstype)
+                            Some(operator_check(&lhstype, &rhstype, &opr).unwrap())
                         }
                         Operator::SubOptr => {
                             self.program += "\t\tsub rax, rbx\n\n";
-                            Some(lhstype)
+                            Some(operator_check(&lhstype, &rhstype, &opr).unwrap())
                         }
                         Operator::BitAndOptr => {
                             self.program += "\t\tand rax, rbx\n\n";
-                            Some(lhstype)
+                            Some(operator_check(&lhstype, &rhstype, &opr).unwrap())
                         }
                         Operator::BitOrOptr => {
                             self.program += "\t\tor  rax, rbx\n\n";
-                            Some(lhstype)
+                            Some(operator_check(&lhstype, &rhstype, &opr).unwrap())
                         }
                         Operator::BitXorOptr => {
                             self.program += "\t\txor rax, rbx\n\n";
-                            Some(lhstype)
+                            Some(operator_check(&lhstype, &rhstype, &opr).unwrap())
                         }
                         Operator::AssignOptr => {
                             // The assign operator swaps operand order
                             self.program += "\t\tmov qword [rbx], rax\n\n";
-                            Some(rhstype)
+                            Some(operator_check(&rhstype, &lhstype, &opr).unwrap())
                         }
                     }
                 }

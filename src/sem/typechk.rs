@@ -267,7 +267,7 @@ pub fn operator_check(lhs: &ValueKind, rhs: &ValueKind, op: &Operator) -> Option
 
     match op {
         Operator::AssignOptr => {
-            if matches!(lhs, ValueKind::Lvalue(_, _)) {
+            if matches!(lhs, ValueKind::Lvalue(_, _)) || matches!(lhs, ValueKind::LvalueRef(_)) {
                 return Some(ValueKind::Rvalue(SymbolMajorType::Builtin(lhst.clone())));
             } else {
                 return None;
