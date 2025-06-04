@@ -8,7 +8,10 @@ mod sem;
 mod syn;
 
 use lex::lexer::Lexer;
-use sem::symtab::{SymbolTable, SymtabGenerator};
+use sem::{
+    symtab::{SemanticError, SymbolTable, SymtabGenerator},
+    typechk::TypeChecker,
+};
 use syn::syntax::SyntaxParser;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -26,7 +29,27 @@ fn main() -> Result<(), Box<dyn Error>> {
         .make_root();
 
     let mut symbols = SymbolTable::new();
-    let typetree = SymtabGenerator::new(&mut symbols).generate(syn)?;
+    let syn = SymtabGenerator::new(&mut symbols).generate(syn)?;
+
+    let typetree = {
+        let mut tyck = TypeChecker::new(&symbols);
+        let res = tyck.typecheck(syn)?;
+        let res = tyck.bindcheck(res)?;
+        let res = tyck.assure_ints(res)?;
+        res
+    };
+
+    /* NOTE: Currently, having anything anywhere other than the globalscope is undefined behaviour. */
+    let global_only = symbols
+        .get_all_syms()
+        .iter()
+        .fold(true, |left, right| left && right.scope == 0);
+
+    if global_only == false {
+        Err(SemanticError(format!(
+            "error: compiler only support globals."
+        )))?;
+    }
 
     symbols.print();
     typetree.print_tree(1);

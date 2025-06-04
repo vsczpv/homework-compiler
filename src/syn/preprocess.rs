@@ -344,6 +344,7 @@ macro_rules! declarm {
                 ident,
                 defined,
                 typed,
+                generation: None,
             }));
 
             if defined {

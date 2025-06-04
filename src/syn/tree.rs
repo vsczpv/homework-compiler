@@ -137,11 +137,13 @@ pub enum Virtual {
         ident: String,
         defined: bool,
         typed: bool,
+        generation: Option<usize>,
     },
     ConstBinding {
         ident: String,
         defined: bool,
         typed: bool,
+        generation: Option<usize>,
     },
     LetBindingGroup,
     ConstBindingGroup,
@@ -182,11 +184,11 @@ pub enum NodeKind {
     Lex(Lexeme),
     Non(NonTerminal),
     Virt(Virtual),
-    TypedVirt(Virtual, SymbolMajorType),
+    TypedVirt(Virtual, ValueKind),
 }
 
 impl NodeKind {
-    pub fn entype(self, tp: SymbolMajorType) -> Self {
+    pub fn entype(self, tp: ValueKind) -> Self {
         match self {
             Self::Virt(v) => Self::TypedVirt(v, tp),
             _ => panic!(),
@@ -399,11 +401,13 @@ impl AstNode {
                 ident,
                 defined,
                 typed,
+                generation,
             }) => true,
             Some(Virtual::ConstBinding {
                 ident,
                 defined,
                 typed,
+                generation,
             }) => true,
             _ => false,
         }
