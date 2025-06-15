@@ -112,6 +112,14 @@ impl<'a> AssemblySpitter<'a> {
                             self.program += "\t\txor rax, rbx\n\n";
                             Some(operator_check(&lhstype, &rhstype, &opr).unwrap())
                         }
+                        Operator::RShiftOptr => {
+                            self.program += "\t\tshr rax, rbx\n\n";
+                            Some(operator_check(&lhstype, &rhstype, &opr).unwrap())
+                        }
+                        Operator::LShiftOptr => {
+                            self.program += "\t\tshl rax, rbx\n\n";
+                            Some(operator_check(&lhstype, &rhstype, &opr).unwrap())
+                        }
                         Operator::AssignOptr => {
                             // The assign operator swaps operand order
                             self.program += "\t\tmov qword [rbx], rax\n\n";

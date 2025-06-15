@@ -59,7 +59,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         .get_program();
 
     println!("{program}");
-    typetree.print_tree(1);
 
     return Ok(());
 }
