@@ -219,6 +219,8 @@ pub enum Operator {
     BitOrOptr,
     BitXorOptr,
     AssignOptr,
+    RShiftOptr,
+    LShiftOptr,
     Brack,
 }
 
@@ -229,8 +231,11 @@ impl From<Token> for Operator {
             Token::MinusSign => Self::SubOptr,
             Token::BitAndOptr => Self::BitAndOptr,
             Token::BitOrOptr => Self::BitOrOptr,
-            Token::BitXorEqualsOptr => Self::BitXorOptr,
+            Token::BitXorOptr => Self::BitXorOptr,
+            Token::RShiftOptr => Self::RShiftOptr,
+            Token::LShiftOptr => Self::LShiftOptr,
             Token::AssignOptr => Self::AssignOptr,
+            Token::LShiftOptr => Self::LShiftOptr,
             _ => panic!(
                 "internal compiler error: unimplementer operator {:?}",
                 value
@@ -253,6 +258,8 @@ impl Operator {
             Operator::BitAndOptr => true,
             Operator::BitOrOptr => true,
             Operator::BitXorOptr => true,
+            Operator::LShiftOptr => true,
+            Operator::RShiftOptr => true,
             Operator::AssignOptr => true,
             Operator::Brack => true,
         }
@@ -265,6 +272,8 @@ impl Operator {
             Operator::BitAndOptr => false,
             Operator::BitOrOptr => false,
             Operator::BitXorOptr => false,
+            Operator::RShiftOptr => false,
+            Operator::LShiftOptr => false,
             Operator::Brack => false,
         }
     }
