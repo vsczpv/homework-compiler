@@ -24,11 +24,11 @@ use std::fmt::Display;
 use ParserStateAction::*;
 
 #[derive(Clone, Debug)]
-pub struct SyntaxError(ParserState);
+pub struct SyntaxError(ParserState, Lexeme);
 
 impl Display for SyntaxError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "error at state {}", self.0)
+        write!(f, "error at state {} at {:?}", self.0, self.1.get_token())
     }
 }
 
@@ -122,7 +122,7 @@ impl SyntaxParser {
 
                 return SyntaxParsingState::Continue;
             }
-            Error => SyntaxParsingState::Reject(SyntaxError(state)),
+            Error => SyntaxParsingState::Reject(SyntaxError(state, self.curr_lx.clone().unwrap())),
         };
     }
 }
