@@ -1,5 +1,6 @@
 #![allow(clippy::needless_return)]
 
+use clap::Parser;
 use std::error::Error;
 
 mod common;
@@ -15,8 +16,29 @@ use sem::{
 };
 use syn::syntax::SyntaxParser;
 
+#[derive(clap::ValueEnum, Clone, Debug)]
+enum EmissionMode {
+    Lex,
+    RawSyntax,
+    Syntax,
+    TypedSyntax,
+    Symtab,
+    Asm,
+}
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    #[arg(short, long, help = "Compilation mode.")]
+    mode: EmissionMode,
+    #[arg(required(true), help = "Path of systeml program to compile.")]
+    file: String,
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
-    let input = std::fs::read_to_string("samples/target.l")?;
+    let args = Args::parse();
+
+    let input = std::fs::read_to_string(args.file)?;
 
     let lexemes = Lexer::new()
         .tokenize(input)?
@@ -24,13 +46,31 @@ fn main() -> Result<(), Box<dyn Error>> {
         .filter(|v| !v.get_token_ref().is_comment())
         .collect();
 
-    let syn = SyntaxParser::new(lexemes)
-        .parse()?
+    if matches!(args.mode, EmissionMode::Lex) {
+        for l in lexemes {
+            println!("{l:?}");
+        }
+        return Ok(());
+    }
+
+    let syn = SyntaxParser::new(lexemes).parse()?;
+
+    if matches!(args.mode, EmissionMode::RawSyntax) {
+        syn.print_tree(0);
+        return Ok(());
+    }
+
+    let syn = syn
         .try_apply_many(&syn::preprocess::PREPROCESSES)?
         .make_root();
 
     let mut symbols = SymbolTable::new();
     let syn = SymtabGenerator::new(&mut symbols).generate(syn)?;
+
+    if matches!(args.mode, EmissionMode::Syntax) {
+        syn.print_tree(0);
+        return Ok(());
+    }
 
     let typetree = {
         let mut tyck = TypeChecker::new(&symbols);
@@ -39,6 +79,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         let res = tyck.assure_ints(res)?;
         res
     };
+
+    if matches!(args.mode, EmissionMode::TypedSyntax) {
+        typetree.print_tree(0);
+        return Ok(());
+    }
+
+    if matches!(args.mode, EmissionMode::Symtab) {
+        symbols.print();
+        return Ok(());
+    }
+
+    assert!(matches!(args.mode, EmissionMode::Asm));
 
     /* NOTE: Currently, having anything anywhere other than the globalscope is undefined behaviour. */
     let global_only = symbols
