@@ -134,7 +134,7 @@ impl<'a> SymtabGenerator<'a> {
     pub fn generate(&mut self, mut tree: Box<AstNode>) -> SemanticResult {
         let mut newnode = AstNode::new(tree.get_kind().to_owned());
         for c in tree.unpeel_children() {
-            newnode.add_child(self.act_on(c)?);
+            newnode.cpush(self.act_on(c)?);
         }
         Ok(newnode)
         /*
@@ -230,7 +230,7 @@ impl<'a> SymtabGenerator<'a> {
         //        assert_eq!(node.get_children().len(), 2);
 
         for c in node.unpeel_children() {
-            newnode.add_child(self.act_on(c)?);
+            newnode.cpush(self.act_on(c)?);
         }
 
         self.scope_stack.pop_back();
@@ -272,12 +272,12 @@ impl<'a> SymtabGenerator<'a> {
         let body = kids.next().unwrap();
         let myield = kids.next();
 
-        newnode.add_child(self.act_on(range_a)?);
-        newnode.add_child(self.act_on(range_b)?);
-        newnode.add_child(self.act_on(body)?);
+        newnode.cpush(self.act_on(range_a)?);
+        newnode.cpush(self.act_on(range_b)?);
+        newnode.cpush(self.act_on(body)?);
 
         if let Some(n) = myield {
-            newnode.add_child(self.act_on(n)?);
+            newnode.cpush(self.act_on(n)?);
         }
 
         self.scope_stack.pop_back();

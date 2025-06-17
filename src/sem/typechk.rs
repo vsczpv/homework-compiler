@@ -377,7 +377,7 @@ impl<'a> TypeChecker<'a> {
 
         let mut newnode = AstNode::new(tree.get_kind().clone());
         for c in tree.unpeel_children() {
-            newnode.add_child(self.assure_ints(c)?);
+            newnode.cpush(self.assure_ints(c)?);
         }
         return Ok(newnode);
     }
@@ -421,14 +421,14 @@ impl<'a> TypeChecker<'a> {
 
         let mut newnode = AstNode::new(tree.get_kind().clone());
         for c in tree.unpeel_children() {
-            newnode.add_child(self.bindcheck(c)?);
+            newnode.cpush(self.bindcheck(c)?);
         }
         return Ok(newnode);
     }
     pub fn typecheck(&mut self, tree: Box<AstNode>) -> SemanticResult {
         let mut newnode = AstNode::new(tree.get_kind().clone());
         for c in tree.unpeel_children() {
-            newnode.add_child(self.typecheck(c)?);
+            newnode.cpush(self.typecheck(c)?);
         }
 
         match newnode.get_kind() {
@@ -466,7 +466,7 @@ impl<'a> TypeChecker<'a> {
             NodeKind::Virt(Virtual::GenericExpressionList) => {
                 let mut nnnode = AstNode::new(newnode.get_kind().to_owned());
                 for c in newnode.unpeel_children() {
-                    nnnode.add_child(self.typecheck(c)?);
+                    nnnode.cpush(self.typecheck(c)?);
                 }
                 newnode = nnnode;
 

@@ -235,6 +235,7 @@ pub struct AstNode {
     children: Vec<Box<AstNode>>,
 }
 
+/*
 impl Clone for Box<AstNode> {
     fn clone(&self) -> Self {
         let mut newnode = AstNode::new(self.get_kind().to_owned());
@@ -244,6 +245,7 @@ impl Clone for Box<AstNode> {
         newnode
     }
 }
+*/
 
 impl AstNode {
     pub fn new(kind: NodeKind) -> Box<Self> {
@@ -252,6 +254,32 @@ impl AstNode {
             children: Vec::default(),
         })
     }
+    pub fn try_transform_many(
+        self: &mut Box<Self>,
+        processes: &[PreprocessKind],
+    ) -> Result<(), AstPreprocessingError> {
+        for p in processes {
+            match p {
+                PreprocessKind::Infallible(proc) => {
+                    self.try_transform(|node| Ok(proc(node)))?;
+                }
+                PreprocessKind::Fallible(proc) => {
+                    self.try_transform(proc)?;
+                }
+            }
+        }
+        return Ok(());
+    }
+    pub fn try_transform<F>(self: &mut Box<Self>, transform: F) -> Result<(), AstPreprocessingError>
+    where
+        F: Fn(&mut Box<Self>) -> Result<(), AstPreprocessingError> + Copy + Clone,
+    {
+        self.children
+            .iter_mut()
+            .try_for_each(|n| n.try_transform(transform));
+        return transform(self);
+    }
+    /*
     pub fn try_apply_many(
         mut self: Box<Self>,
         processes: &[PreprocessKind],
@@ -274,13 +302,20 @@ impl AstNode {
         let children = self.unpeel_children();
 
         for c in children {
-            newnode.add_child(c.try_apply(transform)?);
+            newnode.cpush(c.try_apply(transform)?);
         }
 
         return transform(newnode);
     }
-    pub fn add_child(&mut self, child: Box<AstNode>) {
+    */
+    pub fn ccount(&self) -> usize {
+        self.children.len()
+    }
+    pub fn cpush(&mut self, child: Box<AstNode>) {
         self.children.push(child);
+    }
+    pub fn retain(&mut self, f: fn(&Box<AstNode>) -> bool) {
+        self.children.retain(f);
     }
     pub fn morph(&mut self, kind: NodeKind) {
         self.kind = kind;
@@ -294,15 +329,27 @@ impl AstNode {
             c.print_tree(depth + 1);
         }
     }
-    pub fn invert_children(&mut self) {
+    pub fn reverse_children(&mut self) {
         self.children.reverse();
     }
+    /*
     pub fn get_children(&self) -> &Vec<Box<AstNode>> {
         &self.children
     }
     pub fn get_children_mut(&mut self) -> &mut Vec<Box<AstNode>> {
         &mut self.children
     }
+    */
+    pub fn get(&self, index: usize) -> Option<&Box<AstNode>> {
+        self.children.get(index)
+    }
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut Box<AstNode>> {
+        self.children.get_mut(index)
+    }
+    pub fn raise(&mut self, index: usize) -> Box<AstNode> {
+        self.children.swap_remove(index)
+    }
+    /*
     pub fn follow_line<'a>(self: &'a Box<Self>, depth: usize) -> &'a Box<Self> {
         match depth {
             0 => self,
@@ -337,6 +384,7 @@ impl AstNode {
                 .move_follow_line2(depth - 1, direction),
         }
     }
+    */
     pub fn unpeel_children(self) -> Vec<Box<AstNode>> {
         self.children
     }
@@ -413,6 +461,7 @@ impl AstNode {
             _ => false,
         }
     }
+    /*
     pub fn move_shuffle_n_transform(
         &mut self,
         operations: &[(usize, &dyn Fn(Box<AstNode>) -> Box<AstNode>)],
@@ -427,9 +476,10 @@ impl AstNode {
         }
         self.children = new_vec;
     }
+    */
     pub fn make_root(self: Box<Self>) -> Box<Self> {
         let mut newroot = AstNode::new(NodeKind::Virt(Virtual::AstRoot));
-        newroot.add_child(self);
+        newroot.cpush(self);
         return newroot;
     }
 }

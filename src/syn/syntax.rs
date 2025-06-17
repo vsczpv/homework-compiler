@@ -103,11 +103,11 @@ impl SyntaxParser {
                 let mut node = AstNode::new(NodeKind::Non(NonTerminal::ETA_PRODUCTION));
 
                 for _ in 0..prod.ct_to_pop {
-                    node.add_child(self.tree.pop().unwrap());
+                    node.cpush(self.tree.pop().unwrap());
                     self.stack.pop();
                 }
 
-                node.invert_children();
+                node.reverse_children();
 
                 let oldstate = self.stack.last().cloned().expect("stack empty");
 
