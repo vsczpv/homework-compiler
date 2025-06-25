@@ -1,7 +1,7 @@
 #![allow(clippy::needless_return)]
 
 use clap::Parser;
-use std::error::Error;
+use std::{error::Error, io::Read};
 
 mod common;
 mod lex;
@@ -38,7 +38,13 @@ struct Args {
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
 
-    let input = std::fs::read_to_string(args.file)?;
+    let input = if args.file.eq("-") {
+        let mut buf = String::new();
+        std::io::stdin().read_to_string(&mut buf)?;
+        buf
+    } else {
+        std::fs::read_to_string(args.file)?
+    };
 
     let lexemes = Lexer::new()
         .tokenize(input)?
