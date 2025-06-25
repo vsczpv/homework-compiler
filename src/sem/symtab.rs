@@ -7,6 +7,10 @@ use crate::sem::typechk::*;
 use crate::syn::tree::*;
 
 #[derive(Debug)]
+/// Opções de definção
+/// - Definido                (Defined)
+/// - Indefinido              (Undefined)
+/// - Definido dentro de loop (transient)
 pub enum SymbolDefinedState {
     Defined,
     Undefined,
@@ -14,7 +18,7 @@ pub enum SymbolDefinedState {
 }
 
 impl SymbolDefinedState {
-    // retorna um estado de definição baseado em um booleano
+/// Retorna um estado de definição baseado em um booleano
     fn from_bool(b: bool) -> Self {
         match b {
             true => Self::Defined,
@@ -25,7 +29,16 @@ impl SymbolDefinedState {
 }
 
 #[derive(Debug)]
-// símbolo na tabela de símbolos
+/// Símbolo da tabela de símbolos 
+/// 
+/// **contém**
+/// - tipo     : [SymbolDefinedState]
+/// - definida : [SymbolDefinedState]
+/// - escopo   : usize
+/// - nome     : String
+/// - usada    : bool
+/// - geração  : usize (identificador único de cada símbolo)
+///
 pub struct Symbol {
     pub stype: SymbolMajorType,
     pub defined: SymbolDefinedState,
@@ -36,6 +49,10 @@ pub struct Symbol {
 }
 
 // tabela de símbolos
+
+/// Tabela de símbolos
+/// 
+/// É um vector de símbolos, cada um com seus respectivos atributos
 pub struct SymbolTable {
     syms: Vec<Symbol>,
 }
@@ -44,6 +61,8 @@ impl SymbolTable {
     pub fn new() -> Self {
         SymbolTable { syms: Vec::new() }
     }
+
+    /// Adiciona um símbolo ao vector
     fn add(&mut self, sym: Symbol) {
         if sym.ident != "_" {
             self.syms.push(sym);
@@ -100,14 +119,18 @@ impl Display for SemanticError {
 pub type SemanticResult = Result<Box<AstNode>, SemanticError>;
 
 
+/// Cabeça da análise semântica
+/// 
+/// controla escopos, tabela de símbolos, ids, etc
 pub struct SymtabGenerator<'a> {
-    scope_stack: VecDeque<usize>,   // VecDeque é um vetor que se espande para ambos os lados
-    scope_counter: usize,
+    scope_stack: VecDeque<usize>,  // VecDeque é um vetor que se espande para ambos os lados
+    scope_counter: usize,             // Contador para o ID único de cada escopo
     syms: &'a mut SymbolTable,
-    generation: usize,                // identificador único para cada símbolo
+    generation: usize,                // Contador para o ID único de cada símbolo
 }
 
 impl<'a> SymtabGenerator<'a> {
+    /// Cria normalmente, sem executar nenhuma função no processo
     pub fn new(syms: &'a mut SymbolTable) -> Self {
         SymtabGenerator {
             scope_stack: VecDeque::new(),
@@ -128,7 +151,16 @@ impl<'a> SymtabGenerator<'a> {
         }
         return None;
     }
-    // Processa o nó da AST
+
+
+    /// Processa o nó da AST
+    /// 
+    /// retorna o nó (quem insere na árvore é a [SymtabGenerator::generate])
+    ///
+    /// # Funcionamento
+    /// Verifica o tipo do nó e chama a função handler feita para ele
+    /// 
+
     fn act_on(&mut self, mut node: Box<AstNode>) -> SemanticResult {
         // verifica o tipo do nó e chama a função apropriada
         match node.get_kind().to_owned() {
@@ -142,7 +174,13 @@ impl<'a> SymtabGenerator<'a> {
         }
         //        self.typecheck(res)
     }
-    // recria o nó na árvore de saída, processando os filhos (é a função chamada pelo main.rs)
+
+
+    /// Recria o nó, fazendo a análise semântica nele.
+    /// 
+    /// 
+    /// 
+    /// 
     pub fn generate(&mut self, mut tree: Box<AstNode>) -> SemanticResult {
         let mut newnode = AstNode::new(tree.get_kind().to_owned());
         for c in tree.unpeel_children() {
@@ -157,6 +195,20 @@ impl<'a> SymtabGenerator<'a> {
         */
     }
 
+
+    /// Tetorna
+    /// 
+    /// 
+    /// # Funcionamento
+    /// 
+    /// Coleta o identificador do token do lexema do nó filho
+    /// 
+    /// Retorna erro se ainda não tiver sido declarado
+    /// 
+    /// Transforma seu NodeKind em `Lvalue`
+    /// 
+    /// retorna o nó (quem insere na árvore é a [SymtabGenerator::generate])
+    /// 
     fn handle_ident(&mut self, mut node: Box<AstNode>) -> SemanticResult {
         let last = node.get_children().len() - 1;
 
@@ -187,6 +239,14 @@ impl<'a> SymtabGenerator<'a> {
         }
     }
 
+    /// **Retorna** uma sub-árvore, analizada semanticamente, referente ao escopo e tudo o que há dentro dele.
+    /// 
+    /// # Funcionamento
+    /// 
+    /// 1. Cria um escopo na tabela de escopos
+    /// 2. Passa um [`generate()`](SymtabGenerator::generate) em nele mesmo (analizando tudo o que há dentro do escopo)
+    /// 3. Exclui o esxopo da pilha. Para o analizador não utilizar mais as variáveis internas
+    /// 4. Retorna o nó
     fn handle_scope(&mut self, mut node: Box<AstNode>) -> SemanticResult {
         self.scope_stack.push_back(self.scope_counter);
         self.scope_counter += 1;
@@ -257,16 +317,32 @@ impl<'a> SymtabGenerator<'a> {
         */
     }
 
+    
+    /// **Retorna** um novo ASTNode referente a um lasso for (forEach)
+    /// 
+    /// Esse nó possui 4 filhos, início da iteração, fim da iteração, corpo e maybe yield
+    /// 
+    /// # Funcionamento
+    /// 
+    /// 1. Cria um símbolo transiente para a variável de iteração
+    /// 2. Adiciona ele à tabela de símbolos
+    /// 3. Pega os 4 nós filhos do ASTNode passado como parâmetro e os considera:
+    /// > 1. Range A
+    /// > 2. Range B
+    /// > 3. Body
+    /// > 4. Maybe yield
+    /// 4. Cria um ASTNode com o símbolo novo e os filhos criados
+    /// 5. Rerorna esse ASTNode
     fn handle_forexpr(&mut self, mut node: Box<AstNode>, ident: &String) -> SemanticResult {
         self.scope_stack.push_back(self.scope_counter);
         self.scope_counter += 1;
 
-        let atscope = *self.scope_stack.back().unwrap();
+        let at_scope = *self.scope_stack.back().unwrap();
 
-        let newsym = Symbol {
+        let new_sym = Symbol {
             stype: SymbolMajorType::Builtin(BuiltinTypes::Int),
             defined: SymbolDefinedState::Transient,
-            scope: atscope,
+            scope: at_scope,
             ident: ident.to_owned(),
             used: false,
             generation: self.generation,
@@ -274,7 +350,7 @@ impl<'a> SymtabGenerator<'a> {
 
         self.generation += 1;
 
-        self.syms.add(newsym);
+        self.syms.add(new_sym);
 
         let mut newnode = AstNode::new(node.get_kind().to_owned());
         let mut kids = node.unpeel_children().into_iter();

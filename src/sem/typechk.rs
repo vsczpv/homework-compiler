@@ -17,6 +17,11 @@ pub enum BuiltinTypes {
 }
 
 #[derive(Debug, Clone)]
+/// Pode ser
+/// - Valor (Builtin(int, float, unit, char))
+/// - Lambda
+/// - Array
+/// - Unknown
 pub enum SymbolMajorType {
     Builtin(BuiltinTypes),
     Lambda {
@@ -341,6 +346,9 @@ pub fn operator_check(lhs: &ValueKind, rhs: &ValueKind, op: &Operator) -> Option
     }
 }
 
+/// Contém apenas:
+/// - tabela de símbolos (referência para)
+/// - métodos 
 pub struct TypeChecker<'a> {
     syms: &'a SymbolTable,
 }
@@ -416,6 +424,17 @@ impl<'a> TypeChecker<'a> {
         }
         return Ok(newnode);
     }
+
+    /// Primeiro método do TypeChecker chamado pelo main.
+    /// 
+    /// **Retorna** a descendência do nó, contendo a tipagem de cada expressão
+    /// 
+    /// 
+    /// # Funcionamento
+    /// 
+    /// Função recursiva que se aplica a cada nó da AST (por *deph first*)
+    /// 
+    /// 
     pub fn typecheck(&mut self, tree: Box<AstNode>) -> SemanticResult {
         let mut newnode = AstNode::new(tree.get_kind().clone());
         for c in tree.unpeel_children() {

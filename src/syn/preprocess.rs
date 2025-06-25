@@ -30,8 +30,10 @@ pub type TryPreprocessClosure = fn(Box<AstNode>) -> Result<Box<AstNode>, AstPrep
 /// 
 /// Entretanto, o corpo da função pode variar.
 /// 
-/// As funções feitas para usar neles estão em [systeml::syn::preprocess::PREPROCESSES].
-
+/// As funções feitas para usar neles estão salvas em constantes, escritas abaixo.
+/// 
+/// que ficam também salvas em [PREPROCESSES].
+///
 pub enum PreprocessKind {
     Infallible(PreprocessClosure),
     Fallible(TryPreprocessClosure),

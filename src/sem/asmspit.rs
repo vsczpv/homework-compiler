@@ -11,6 +11,8 @@ use super::{
     typechk::{operator_check, ValueKind},
 };
 
+
+/// Objeto pricipal da geração de código
 pub struct AssemblySpitter<'a> {
     program: String,
     syms: &'a SymbolTable,
@@ -29,6 +31,9 @@ impl<'a> AssemblySpitter<'a> {
         self.program += "SYS_EXIT equ 0x3c\n";
         return self;
     }
+
+
+    /// .bss, aonde define-se as variáveis globais sem declará-las 
     pub fn spit_globals(mut self) -> Self {
         self.program += "section .bss\n";
         for symbol in self.syms.get_all_syms() {

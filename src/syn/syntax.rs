@@ -59,9 +59,9 @@ impl SyntaxParser {
         }
     }
 
-    /// **output** - Árvose AST de acordo com seu fluxo de tokens
+    /// **retorna** - Árvose AST completa, de acordo com seu fluxo de tokens
     ///
-    /// > :warning: **O parser é deletado ao usar este método.**
+    /// > OBS.: **O parser é deletado ao usar este método.**
     ///
     /// # Funcionamento
     /// 
