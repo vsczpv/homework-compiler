@@ -391,7 +391,8 @@ impl AstNode {
     }
     pub fn tree_as_string_recursive(&self, text: &mut String, depth: u32) -> () {
 
-        text.push_str(format!("{}{:?}\n", "    ".repeat(depth as usize), self.kind).as_str());
+        let new_line = format!("{}{:?}\n", "    ".repeat(depth as usize), self.kind);
+        text.push_str(&new_line);
         for c in &self.children {
             c.tree_as_string_recursive(text, depth + 1);
         }

@@ -1,1 +1,27 @@
-1
+SYS_EXIT equ 0x3c
+section .bss
+	a:	resb	8
+	b:	resb	8
+
+section .text
+    global _start
+
+_start:
+		mov rax, 12
+		lea rax, qword [a]
+		push rax
+
+		mov rax, 3
+		mov rbx, rax
+
+		pop rax
+
+
+		mov rax, qword [rax]
+		add rax, rbx
+
+
+                xor rdi, rdi
+                mov rax, SYS_EXIT
+                syscall
+        

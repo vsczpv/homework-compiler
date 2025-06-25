@@ -129,6 +129,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     println!("\n\nassembly program--------------------------------------------------\n\n");
     println!("{program}");
+    writer.write("assembly_code.txt", &program)?;
+
 
     return Ok(());
 }
