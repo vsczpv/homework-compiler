@@ -30,7 +30,7 @@ enum EmissionMode {
 #[command(version, about, long_about = None)]
 struct Args {
     #[arg(short, long, help = "Compilation mode.")]
-    mode: EmissionMode,
+    emit: EmissionMode,
     #[arg(required(true), help = "Path of systeml program to compile.")]
     file: String,
 }
@@ -52,7 +52,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .filter(|v| !v.get_token_ref().is_comment())
         .collect();
 
-    if matches!(args.mode, EmissionMode::Lex) {
+    if matches!(args.emit, EmissionMode::Lex) {
         for l in lexemes {
             println!("{l:?}");
         }
@@ -61,7 +61,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let syn = SyntaxParser::new(lexemes).parse()?;
 
-    if matches!(args.mode, EmissionMode::RawSyntax) {
+    if matches!(args.emit, EmissionMode::RawSyntax) {
         syn.print_tree(0);
         return Ok(());
     }
@@ -73,7 +73,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut symbols = SymbolTable::new();
     let syn = SymtabGenerator::new(&mut symbols).generate(syn)?;
 
-    if matches!(args.mode, EmissionMode::Syntax) {
+    if matches!(args.emit, EmissionMode::Syntax) {
         syn.print_tree(0);
         return Ok(());
     }
@@ -86,17 +86,17 @@ fn main() -> Result<(), Box<dyn Error>> {
         res
     };
 
-    if matches!(args.mode, EmissionMode::TypedSyntax) {
+    if matches!(args.emit, EmissionMode::TypedSyntax) {
         typetree.print_tree(0);
         return Ok(());
     }
 
-    if matches!(args.mode, EmissionMode::Symtab) {
+    if matches!(args.emit, EmissionMode::Symtab) {
         symbols.print();
         return Ok(());
     }
 
-    assert!(matches!(args.mode, EmissionMode::Asm));
+    assert!(matches!(args.emit, EmissionMode::Asm));
 
     /* NOTE: Currently, having anything anywhere other than the globalscope is undefined behaviour. */
     let global_only = symbols
