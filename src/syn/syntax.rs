@@ -58,6 +58,24 @@ impl SyntaxParser {
             tree: Vec::default(),
         }
     }
+
+    /// **output** - Árvose AST de acordo com seu fluxo de tokens
+    ///
+    /// > :warning: **O parser é deletado ao usar este método.**
+    ///
+    /// # Funcionamento
+    /// 
+    /// É uma máquina de estados 
+    /// 
+    /// A cada passo ([SyntaxParser::step]), verifica se:
+    /// 
+    /// 1. finalizou - retorna a árvore
+    /// 
+    /// 2. erro de sintaxe - retorna erro
+    /// 
+    /// 3. continua - executa o passo seguinte
+    /// 
+    /// As operações na arvore são feitas diretametne pela [SyntaxParser::step]
     pub fn parse(mut self) -> Result<Box<AstNode>, SyntaxError> {
         /* Select initial state */
         self.stack.push(0);
@@ -74,6 +92,14 @@ impl SyntaxParser {
             }
         }
     }
+
+    /// verifica o que a tabela de análise sintática diz para fazer no estado atual com o token atual
+    /// 
+    ///  **output** - Retorna o estado da máquina após o passo
+    ///
+    ///
+    /// Já executa a redução, empilhamento e transições
+    /// 
     fn step(&mut self) -> SyntaxParsingState {
         let tokenid = self.curr_lx.as_ref().unwrap().get_token().as_index();
 

@@ -10,10 +10,11 @@ use crate::syn::tree::*;
 pub enum SymbolDefinedState {
     Defined,
     Undefined,
-    Transient,
+    Transient, // definido dentro de um loop, que fica repetindo
 }
 
 impl SymbolDefinedState {
+    // retorna um estado de definição baseado em um booleano
     fn from_bool(b: bool) -> Self {
         match b {
             true => Self::Defined,
@@ -24,6 +25,7 @@ impl SymbolDefinedState {
 }
 
 #[derive(Debug)]
+// símbolo na tabela de símbolos
 pub struct Symbol {
     pub stype: SymbolMajorType,
     pub defined: SymbolDefinedState,
@@ -33,6 +35,7 @@ pub struct Symbol {
     pub generation: usize,
 }
 
+// tabela de símbolos
 pub struct SymbolTable {
     syms: Vec<Symbol>,
 }
@@ -46,6 +49,7 @@ impl SymbolTable {
             self.syms.push(sym);
         }
     }
+    // verifica se o identificador (ident) está no escopo (scope)
     fn is_ident_in_scope(&self, ident: &String, scope: usize) -> bool {
         for s in self.syms.iter().filter(|e| e.scope == scope) {
             if s.ident.eq(ident) {
@@ -54,6 +58,7 @@ impl SymbolTable {
         }
         return false;
     }
+    // pega símbolo por identificador e escopo
     fn get(&self, ident: &String, scope: usize) -> Option<&Symbol> {
         for s in self.syms.iter().rev() {
             if s.ident.eq(ident) && s.scope == scope {
@@ -62,6 +67,7 @@ impl SymbolTable {
         }
         return None;
     }
+    // pega símbolo por ID único
     pub fn get_by_gen(&self, gen: usize) -> Option<&Symbol> {
         for s in &self.syms {
             if s.generation == gen {
@@ -90,13 +96,15 @@ impl Display for SemanticError {
     }
 }
 
+// output do arquivo, ou é uma árvore, ou um erro
 pub type SemanticResult = Result<Box<AstNode>, SemanticError>;
 
+
 pub struct SymtabGenerator<'a> {
-    scope_stack: VecDeque<usize>,
+    scope_stack: VecDeque<usize>,   // VecDeque é um vetor que se espande para ambos os lados
     scope_counter: usize,
     syms: &'a mut SymbolTable,
-    generation: usize,
+    generation: usize,                // identificador único para cada símbolo
 }
 
 impl<'a> SymtabGenerator<'a> {
@@ -111,6 +119,7 @@ impl<'a> SymtabGenerator<'a> {
     fn in_scope(&self, id: usize) -> bool {
         self.scope_stack.binary_search(&id).is_ok()
     }
+    // Verifica em cada escopo, se o identificador está definido
     fn search_all_scopes(&self, ident: &String) -> Option<usize> {
         for scopeid in self.scope_stack.iter().rev() {
             if self.syms.is_ident_in_scope(ident, *scopeid) {
@@ -119,7 +128,9 @@ impl<'a> SymtabGenerator<'a> {
         }
         return None;
     }
+    // Processa o nó da AST
     fn act_on(&mut self, mut node: Box<AstNode>) -> SemanticResult {
+        // verifica o tipo do nó e chama a função apropriada
         match node.get_kind().to_owned() {
             NodeKind::Virt(Virtual::Scope) => self.handle_scope(node),
             NodeKind::Virt(Virtual::LetBindingGroup)
@@ -131,6 +142,7 @@ impl<'a> SymtabGenerator<'a> {
         }
         //        self.typecheck(res)
     }
+    // recria o nó na árvore de saída, processando os filhos (é a função chamada pelo main.rs)
     pub fn generate(&mut self, mut tree: Box<AstNode>) -> SemanticResult {
         let mut newnode = AstNode::new(tree.get_kind().to_owned());
         for c in tree.unpeel_children() {

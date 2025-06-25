@@ -4,6 +4,15 @@ use crate::syn::syntax::ParserStateAction::*;
 pub const PARSER_TOKEN_CT: usize = 70usize;
 pub const PARSER_STATE_CT: usize = 199usize;
 #[rustfmt::skip]
+
+
+/// # Tabela de análise
+///
+/// Linha = estado
+///
+/// Coluna = token
+///
+/// Dado o estado atual e o token lido, retorna um shift, reduce, se é um erro sintático ou se o programa finalizou a execução (Accept, quando lê um $ após finalização válida)
 pub const PARSER_TABLE: [[ParserStateAction; PARSER_TOKEN_CT]; PARSER_STATE_CT] = [
 	[Error,Error,Error,Shift(18),Shift(14),Shift(15),Shift(55),Shift(57),Error,Shift(58),Shift(59),Error,Shift(17),Shift(16),Shift(56),Error,Error,Error,Error,Error,Error,Shift(31),Error,Shift(12),Error,Error,Error,Error,Error,Error,Error,Error,Shift(35),Shift(36),Error,Error,Error,Error,Error,Error,Error,Error,Error,Shift(37),Shift(38),Error,Error,Error,Error,Shift(40),Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Shift(39),Error,Error,Error,Shift(48),Shift(54),Shift(43),Shift(44),Shift(46),Shift(47),],
 	[Accept,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,Error,],

@@ -21,6 +21,17 @@ impl Error for AstPreprocessingError {}
 pub type PreprocessClosure = fn(Box<AstNode>) -> Box<AstNode>;
 pub type TryPreprocessClosure = fn(Box<AstNode>) -> Result<Box<AstNode>, AstPreprocessingError>;
 
+/// 
+/// Serve apenas para definir se retornará ele mesmo ou um Result\<>.
+/// 
+/// - **Infallible** - tem uma função que retorna um Box\<AstNode>
+/// - **Falibile**   - tem uma função que retorna um Result\<Box\<AstNode>, AstPreprocessingError>
+/// 
+/// 
+/// Entretanto, o corpo da função pode variar.
+/// 
+/// As funções feitas para usar neles estão em [systeml::syn::preprocess::PREPROCESSES].
+
 pub enum PreprocessKind {
     Infallible(PreprocessClosure),
     Fallible(TryPreprocessClosure),

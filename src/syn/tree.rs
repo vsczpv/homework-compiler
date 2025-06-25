@@ -3,6 +3,9 @@ use crate::sem::typechk::*;
 use crate::syn::preprocess::*;
 use std::ops::Range;
 
+use std::io::{self, Write};
+use std::fs::OpenOptions;
+
 #[derive(Debug, Copy, Clone)]
 #[repr(u16)]
 pub enum NonTerminal {
@@ -189,6 +192,8 @@ pub enum NodeKind {
 }
 
 impl NodeKind {
+
+    /// Transfirna o nó em TypedVirt, que contém sua expressão virtual e se é Lvalue, Rvalue ou RvalueRef
     pub fn entype(self, tp: ValueKind) -> Self {
         match self {
             Self::Virt(v) => Self::TypedVirt(v, tp),
@@ -216,6 +221,19 @@ impl NodeKind {
 }
 
 impl Default for NodeKind {
+
+
+    /// Retorna um nó padrão da AST:
+    /// 
+    /// tipo: Lexeme
+    /// 
+    /// token: DOLLAR
+    /// 
+    /// range: (usize::MAX, usize::MAX)
+    /// 
+    /// line: usize::MAX
+    /// 
+    /// column: usize::MAX
     fn default() -> Self {
         Self::Lex(Lexeme::new(
             crate::lex::tokens::Token::DOLLAR,
@@ -252,6 +270,15 @@ impl AstNode {
             children: Vec::default(),
         })
     }
+
+    
+    /// 
+    /// Recebe um nó da AST (self) e um array de funções de preprocessamento
+    /// 
+    /// Para cada preprocessamento do array, aplica ele na árvore iniciada pelo nó
+    /// 
+    /// 
+    /// 
     pub fn try_apply_many(
         mut self: Box<Self>,
         processes: &[PreprocessKind],
@@ -266,8 +293,35 @@ impl AstNode {
         }
         return Ok(self);
     }
+
+
+    /// # Finalidade
+    /// 
+    /// Chamada pela [AstNode::try_apply_many]
+    ///
+    /// **recebe** um só da AST (self) e uma função conforme especificações no `where`
+    ///
+    /// **retorna** um Result com nó transformado ou um erro sintático
+    /// 
+    /// 
+    /// > OBS.: o nó é consumido na função
+    ///
+    /// Recusrivamente, aplica uma transformação em cada nó da árvore
+    /// 
+    /// 
+    /// # Funcionamento
+    /// 
+    /// Cria uma cópia do nó original
+    /// 
+    /// Coleta os filhos do nó original
+    /// 
+    /// Faz uma recursão (`try_apply()`) para cada filho, em *Deph First*
+    /// 
+    /// Interrompe em qualquer recursão com erro (usando `?`)
+    /// 
+    /// Retorna, a cada recursão, o nó/sub-árvore transformada
     pub fn try_apply<F>(self: Box<Self>, transform: F) -> Result<Box<Self>, AstPreprocessingError>
-    where
+    where // Essa cláusula where está defininfo o que é o tipo `F`. Isso fica mais legível do que se colocasse dentro do `()`
         F: Fn(Box<Self>) -> Result<Box<Self>, AstPreprocessingError> + Copy + Clone,
     {
         let mut newnode = AstNode::new(self.get_kind().clone());
@@ -279,9 +333,14 @@ impl AstNode {
 
         return transform(newnode);
     }
+
+
+    /// Adiciona o nó ao vector de filhos
     pub fn add_child(&mut self, child: Box<AstNode>) {
         self.children.push(child);
     }
+
+    /// muda o tipo ([NodeKind]) do nó
     pub fn morph(&mut self, kind: NodeKind) {
         self.kind = kind;
     }
@@ -294,7 +353,51 @@ impl AstNode {
             c.print_tree(depth + 1);
         }
     }
+
+    
+    /// Escreve a árvore em um arquivo localizado em `IDE/outputs/`
+    pub fn doc_tree(&self, name: &str) -> io::Result<()> {
+        let mut doc_path = String::from("IDE/outputs/");
+        doc_path.push_str(name);
+
+        let mut file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(doc_path)?;
+        
+        file.write_all(b"")?;
+        self.doc_tree_recursive(&mut file, 0)?;
+        Ok(())
+    }
+    pub fn doc_tree_recursive(&self, file: &mut std::fs::File, depth: u32) -> io::Result<()> {
+        
+        writeln!(file, "{}{:?}", "    ".repeat(depth as usize), self.kind)?;
+        for c in &self.children {
+            c.doc_tree_recursive(file, depth + 1)?;
+        }
+
+        Ok(())
+    }
+
+
+    /// Retorna árvore como String
+    pub fn tree_as_string(&self) -> String {
+
+        let mut text = String::from("");
+        let ptr = &mut text;
+        self.tree_as_string_recursive(ptr, 0);
+        return text;
+    }
+    pub fn tree_as_string_recursive(&self, text: &mut String, depth: u32) -> () {
+
+        text.push_str(format!("{}{:?}\n", "    ".repeat(depth as usize), self.kind).as_str());
+        for c in &self.children {
+            c.tree_as_string_recursive(text, depth + 1);
+        }
+    }
     pub fn invert_children(&mut self) {
+        
         self.children.reverse();
     }
     pub fn get_children(&self) -> &Vec<Box<AstNode>> {
@@ -303,6 +406,11 @@ impl AstNode {
     pub fn get_children_mut(&mut self) -> &mut Vec<Box<AstNode>> {
         &mut self.children
     }
+
+
+    /// **Resultado**: o directionésimo filho do nó, indo sempre pela esquerda
+    /// 
+    /// Vai coletando o filho 0 de cada nó até chegar à profundidade solicitada
     pub fn follow_line<'a>(self: &'a Box<Self>, depth: usize) -> &'a Box<Self> {
         match depth {
             0 => self,
@@ -320,6 +428,11 @@ impl AstNode {
                 .move_follow_line(depth - 1),
         }
     }
+
+
+    /// **Resultado**: o directionésimo filho do nó, seguindo a direlão especificada
+    /// 
+    /// Vai coletando o finho \[direction] de cada nó, a até chegar ao desejado
     pub fn follow_line2(self: &Box<Self>, depth: usize, direction: usize) -> &Box<Self> {
         match depth {
             0 => self,
@@ -337,6 +450,8 @@ impl AstNode {
                 .move_follow_line2(depth - 1, direction),
         }
     }
+
+    /// Retorna os filhos do nó
     pub fn unpeel_children(self) -> Vec<Box<AstNode>> {
         self.children
     }
