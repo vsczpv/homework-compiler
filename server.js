@@ -50,7 +50,6 @@ const server = createServer(async (req, res) => {
           proc.stderr.on('data', chunk => {
             m_stderr += (chunk?.toString()?? "")
           })
-          console.log("AAAAAAAAAAA" + m_stderr)
 
           proc.on('close', code => resolve(code))
         })
