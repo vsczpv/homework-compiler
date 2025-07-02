@@ -213,6 +213,12 @@ impl NodeKind {
             _ => None,
         }
     }
+    pub fn some_typed(self) -> Option<(Virtual, ValueKind)> {
+        match self {
+            NodeKind::TypedVirt(virt, va) => Some((virt, va)),
+            _ => None,
+        }
+    }
 }
 
 impl Default for NodeKind {

@@ -6,7 +6,7 @@ use std::{collections::VecDeque, error::Error, fmt::Display};
 use crate::sem::typechk::*;
 use crate::syn::tree::*;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum SymbolDefinedState {
     Defined,
     Undefined,
@@ -23,7 +23,7 @@ impl SymbolDefinedState {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Symbol {
     pub stype: SymbolMajorType,
     pub defined: SymbolDefinedState,
@@ -54,6 +54,14 @@ impl SymbolTable {
         }
         return false;
     }
+    fn get_any_lambda_gen(&self, ident: &String) -> Option<usize> {
+        for s in self.syms.iter().rev() {
+            if s.ident.eq(ident) && s.stype.is_lambda() {
+                return Some(s.generation);
+            }
+        }
+        None
+    }
     fn get(&self, ident: &String, scope: usize) -> Option<&Symbol> {
         for s in self.syms.iter().rev() {
             if s.ident.eq(ident) && s.scope == scope {
@@ -69,6 +77,14 @@ impl SymbolTable {
             }
         }
         return None;
+    }
+    pub fn update_by_gen(&mut self, gen: usize, newsym: Symbol) {
+        for s in &mut self.syms {
+            if s.generation == gen {
+                *s = newsym;
+                break;
+            }
+        }
     }
     pub fn print(&self) {
         for s in &self.syms {
@@ -100,12 +116,12 @@ pub struct SymtabGenerator<'a> {
 }
 
 impl<'a> SymtabGenerator<'a> {
-    pub fn new(syms: &'a mut SymbolTable) -> Self {
+    pub fn new(syms: &'a mut SymbolTable, start_gen: usize) -> Self {
         SymtabGenerator {
             scope_stack: VecDeque::new(),
             scope_counter: 0,
             syms,
-            generation: 0,
+            generation: start_gen,
         }
     }
     fn in_scope(&self, id: usize) -> bool {
@@ -193,10 +209,15 @@ impl<'a> SymtabGenerator<'a> {
         let atscope = *self.scope_stack.back().unwrap();
 
         let sigs = node.follow_line2(1, 0);
+        //        let mut type = SymbolMajorType::Lambda { args: (), ret: () }
+        let mut type_args = Vec::<SymbolMajorType>::new();
 
+        let mut argsymvec = Vec::new();
         for c in sigs.get_children() {
+            let ctype = SymbolMajorType::parse_type(c.follow_line(1));
+            type_args.push(ctype.clone());
             let newsym = Symbol {
-                stype: SymbolMajorType::Unknown,
+                stype: ctype,
                 defined: SymbolDefinedState::Transient,
                 scope: atscope,
                 ident: c
@@ -220,14 +241,20 @@ impl<'a> SymtabGenerator<'a> {
                 )));
             }
 
+            argsymvec.push(newsym.generation);
+
             self.syms.add(newsym);
         }
 
+        let ltype = SymbolMajorType::Lambda {
+            args: type_args,
+            ret: Box::new(SymbolMajorType::parse_type(node.follow_line2(1, 1))),
+            argsym: argsymvec,
+        };
+
         /* TODO */
 
-        let mut newnode = AstNode::new(node.get_kind().to_owned());
-
-        //        assert_eq!(node.get_children().len(), 2);
+        let mut newnode = AstNode::new(node.get_kind().to_owned().entype(ValueKind::Rvalue(ltype)));
 
         for c in node.unpeel_children() {
             newnode.add_child(self.act_on(c)?);
@@ -235,14 +262,6 @@ impl<'a> SymtabGenerator<'a> {
 
         self.scope_stack.pop_back();
         Ok(newnode)
-
-        /*
-        self.act_on(node.follow_line2(1, 1))?;
-        self.act_on(node.follow_line2(1, 2))?;
-
-        self.scope_stack.pop_back();
-        Ok(())
-        */
     }
 
     fn handle_forexpr(&mut self, mut node: Box<AstNode>, ident: &String) -> SemanticResult {

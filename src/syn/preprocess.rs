@@ -796,7 +796,7 @@ const ACCEPT_LTYPE: PreprocessKind = Infallible(|mut node| {
 
 const ACCEPT_OPTR: PreprocessKind = Infallible(|mut node| {
     if let NodeKind::Lex(l) = node.get_kind().to_owned() {
-        if l.get_token().is_logicoptr() || l.get_token().is_bitwiseoptr() {
+        if l.get_token().is_unwrapped_logicoptr() || l.get_token().is_bitwiseoptr() {
             let mut newnode = AstNode::new(NodeKind::Virt(Virtual::Optr));
             newnode.add_child(node);
             return newnode;

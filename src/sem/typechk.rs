@@ -14,6 +14,7 @@ pub enum BuiltinTypes {
     Float,
     Char,
     Unit,
+    Unoperable,
 }
 
 #[derive(Debug, Clone)]
@@ -22,6 +23,7 @@ pub enum SymbolMajorType {
     Lambda {
         args: Vec<SymbolMajorType>,
         ret: Box<SymbolMajorType>,
+        argsym: Vec<usize>, // symbol gen
     },
     Array {
         elem: Box<SymbolMajorType>,
@@ -42,10 +44,19 @@ impl PartialEq for SymbolMajorType {
                 };
                 return lhs == rhs;
             }
-            Self::Lambda { args, ret } => {
+            Self::Lambda {
+                args,
+                ret,
+                argsym: _,
+            } => {
                 let largs = args;
                 let lret = ret;
-                let Self::Lambda { args, ret } = other else {
+                let Self::Lambda {
+                    args,
+                    ret,
+                    argsym: _,
+                } = other
+                else {
                     panic!();
                 };
                 let rargs = args;
@@ -98,6 +109,16 @@ impl SymbolMajorType {
             _ => false,
         }
     }
+    pub fn is_lambda(&self) -> bool {
+        match self {
+            Self::Lambda {
+                args,
+                ret,
+                argsym: _,
+            } => true,
+            _ => false,
+        }
+    }
     pub fn get_array_elem(&self) -> Option<Box<SymbolMajorType>> {
         match self {
             Self::Array { elem, quant } => Some(elem.clone()),
@@ -135,8 +156,11 @@ impl SymbolMajorType {
             NodeKind::TypedVirt(_, tp) => {
                 if let ValueKind::Rvalue(tp) = tp {
                     return tp;
+                } else if let ValueKind::Lvalue(tp, _) = tp {
+                    eprintln!("warning: lvalue on parse_type, discarding reference data. (maybe a function call?)");
+                    return tp;
                 } else {
-                    panic!("internal compiler error: expected rvalue");
+                    panic!("internal compiler error: lvalue-ref on parse_type");
                 }
             }
             NodeKind::Virt(v) => match v {
@@ -180,9 +204,11 @@ impl SymbolMajorType {
                         .iter()
                         .map(|n| Self::parse_type(n))
                         .collect();
+
                     Self::Lambda {
                         args,
                         ret: Box::new(ret),
+                        argsym: Vec::new(), // populated in symtab
                     }
                 }
                 _ => panic!(
@@ -222,6 +248,9 @@ pub enum Operator {
     RShiftOptr,
     LShiftOptr,
     Brack,
+    EqualsOptr,
+    NeqOptr,
+    LtOptr,
 }
 
 impl From<Token> for Operator {
@@ -236,6 +265,9 @@ impl From<Token> for Operator {
             Token::LShiftOptr => Self::LShiftOptr,
             Token::AssignOptr => Self::AssignOptr,
             Token::LShiftOptr => Self::LShiftOptr,
+            Token::EqualsOptr => Self::EqualsOptr,
+            Token::NeqOptr => Self::NeqOptr,
+            Token::LtOptr => Self::LtOptr,
             _ => panic!(
                 "internal compiler error: unimplementer operator {:?}",
                 value
@@ -262,6 +294,9 @@ impl Operator {
             Operator::RShiftOptr => true,
             Operator::AssignOptr => true,
             Operator::Brack => true,
+            Operator::EqualsOptr => true,
+            Operator::NeqOptr => true,
+            Operator::LtOptr => true,
         }
     }
     fn float_capable(&self) -> bool {
@@ -275,11 +310,20 @@ impl Operator {
             Operator::RShiftOptr => false,
             Operator::LShiftOptr => false,
             Operator::Brack => false,
+            Operator::EqualsOptr => true,
+            Operator::NeqOptr => true,
+            Operator::LtOptr => true,
         }
     }
 }
 
 pub fn operator_check(lhs: &ValueKind, rhs: &ValueKind, op: &Operator) -> Option<ValueKind> {
+    if let SymbolMajorType::Builtin(BuiltinTypes::Unoperable) = lhs.inner_type() {
+        return None;
+    }
+    if let SymbolMajorType::Builtin(BuiltinTypes::Unoperable) = rhs.inner_type() {
+        return None;
+    }
     let SymbolMajorType::Builtin(lhst) = lhs.inner_type() else {
         if *op == Operator::Brack {
             if !lhs.inner_type().is_array() {
@@ -361,13 +405,39 @@ impl<'a> TypeChecker<'a> {
     pub fn assure_ints(&mut self, tree: Box<AstNode>) -> SemanticResult {
         match tree.get_kind() {
             NodeKind::TypedVirt(_, tp) => {
-                if *tp.inner_type() != SymbolMajorType::Builtin(BuiltinTypes::Int) {
-                    if !(tp.inner_type().is_array()
+                if *tp.inner_type() != SymbolMajorType::Builtin(BuiltinTypes::Int)
+                    && *tp.inner_type() != SymbolMajorType::Builtin(BuiltinTypes::Unit)
+                    && *tp.inner_type() != SymbolMajorType::Builtin(BuiltinTypes::Unoperable)
+                {
+                    if let SymbolMajorType::Lambda {
+                        args,
+                        ret,
+                        argsym: _,
+                    } = tp.inner_type()
+                    {
+                        if !matches!(**ret, SymbolMajorType::Builtin(BuiltinTypes::Int))
+                            && !matches!(**ret, SymbolMajorType::Builtin(BuiltinTypes::Unit))
+                        {
+                            eprintln!("A {:?}", **ret);
+                            return Err(SemanticError(format!(
+                                    "type error: only unit/int [array]s are currently supported. (found {tp:?})"
+                                )));
+                        }
+                        for a in args {
+                            if !matches!(a, SymbolMajorType::Builtin(BuiltinTypes::Int))
+                                && !matches!(a, SymbolMajorType::Builtin(BuiltinTypes::Unit))
+                            {
+                                return Err(SemanticError(format!(
+                                    "type error: only unit/int [array]s are currently supported. (found {tp:?})"
+                                )));
+                            }
+                        }
+                    } else if !(tp.inner_type().is_array()
                         && (*(tp.inner_type().get_array_elem().unwrap()))
                             .eq(&SymbolMajorType::Builtin(BuiltinTypes::Int)))
                     {
                         return Err(SemanticError(format!(
-                            "type error: only ints and int arrays are currently supported. (found {tp:?})"
+                            "type error: only unit/int [array/lambda]s are currently supported. (found {tp:?})"
                         )));
                     }
                 }
@@ -401,7 +471,7 @@ impl<'a> TypeChecker<'a> {
         }) = tree.get_kind().to_owned().some_virt()
         {
             if defined {
-                self.syms.print();
+                //                self.syms.print();
                 let sym = self
                     .syms
                     .get_by_gen(generation.unwrap())
@@ -455,11 +525,22 @@ impl<'a> TypeChecker<'a> {
                     NodeKind::Virt(Virtual::Ident) => {
                         todo!("virtident")
                     }
+                    NodeKind::Virt(Virtual::IfExpr) => {
+                        newnode.morph(newnode.get_kind().to_owned().entype(ValueKind::Rvalue(
+                            SymbolMajorType::Builtin(BuiltinTypes::Unoperable),
+                        )));
+                    }
+                    NodeKind::Virt(Virtual::WhileExpr) => {
+                        newnode.morph(newnode.get_kind().to_owned().entype(ValueKind::Rvalue(
+                            SymbolMajorType::Builtin(BuiltinTypes::Unoperable),
+                        )));
+                    }
                     _ => {
                         newnode.morph(newnode.get_kind().to_owned().entype(ValueKind::Rvalue(
                             SymbolMajorType::Builtin(BuiltinTypes::Unit),
                         )));
-                        eprintln!("warning: Ignoring type of WrappedTerm");
+                        //                        eprintln!("warning: Ignoring type of WrappedTerm");
+                        panic!("Unimplemented parse_type(WrappedTerm)");
                     }
                 }
             }
@@ -482,6 +563,38 @@ impl<'a> TypeChecker<'a> {
                 1 => match newnode.follow_line(1).get_kind() {
                     NodeKind::TypedVirt(_, tp) => {
                         newnode.morph(newnode.get_kind().to_owned().entype(tp.clone()));
+                    }
+                    NodeKind::Virt(Virtual::Application) => {
+                        let n = newnode.follow_line(1);
+                        let fun = SymbolMajorType::parse_type(n.follow_line2(1, 0));
+                        let SymbolMajorType::Lambda {
+                            args,
+                            ret,
+                            argsym: _,
+                        } = fun.clone()
+                        else {
+                            return Err(SemanticError(format!(
+                                "Attempt to call non-function {:?}",
+                                fun
+                            )));
+                        };
+                        for args in n.get_children().iter().skip(1).zip(args).enumerate() {
+                            let atype = SymbolMajorType::parse_type(args.1 .0);
+                            if atype != args.1 .1 {
+                                return Err(SemanticError(format!(
+                                    "Type mismatch on function call {:?} with {:?} on argument {}",
+                                    fun, atype, args.0
+                                )));
+                            }
+                        }
+                        newnode.morph(
+                            newnode
+                                .get_kind()
+                                .to_owned()
+                                .entype(ValueKind::Rvalue(*ret.clone())),
+                        );
+                        let n = newnode.get_children_mut().get_mut(0).unwrap();
+                        n.morph(n.get_kind().to_owned().entype(ValueKind::Rvalue(*ret)));
                     }
                     _ => todo!(),
                 },

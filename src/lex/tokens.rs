@@ -98,17 +98,9 @@ pub enum Token {
 
 #[allow(unused)]
 impl Token {
-    pub fn is_logicoptr(&self) -> bool {
+    pub fn is_unwrapped_logicoptr(&self) -> bool {
         match self {
-            Token::GteOptr
-            | Token::LteOptr
-            | Token::GtOptr
-            | Token::LtOptr
-            | Token::EqualsOptr
-            | Token::NeqOptr
-            | Token::NotOptr
-            | Token::AndOptr
-            | Token::OrOptr => true,
+            Token::AndOptr | Token::OrOptr => true,
             _ => false,
         }
     }
