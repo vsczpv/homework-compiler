@@ -29,23 +29,29 @@ const server = createServer(async (req, res) => {
   // 2) Rota /run: executa systemL
   if (url.pathname === '/run') {
     
-    
+    /* --- coleta compilador --- */
     const bin = join(__dirname, 'target/debug/systeml.exe')
     let m_exitCode
     let m_stderr = ""
 
-
+    /* coleta código do usuário */
     let user_code = ''
     req.on('data', chunk => {
       user_code += chunk.toString()
     })
 
+
     req.on('end', async () => {
-      console.log(`\nuser code: "${user_code}"`)
+      
+      /* --- escreve arquivo com código do usuário --- */
+      //console.log(`código: ${user_code}`)
+      const code_path = "IDE/outputs/user_code.l"
+      await fs.writeFile(code_path, user_code)
       try {
 
+        /* --- Roda compilador --- */
         m_exitCode = await new Promise((resolve, reject) => {
-          const proc = spawn(bin, [user_code], { cwd: __dirname })
+          const proc = spawn(bin, [code_path], { cwd: __dirname })
 
           proc.stderr.on('data', chunk => {
             m_stderr += (chunk?.toString()?? "")
@@ -60,7 +66,7 @@ const server = createServer(async (req, res) => {
       }
       
       try{
-      // Lê e devolve arquivos gerados
+        /* --- Lê e devolve arquivos gerados --- */
         const assembly_code = await fs.readFile(join(__dirname, 'IDE/outputs/', 'assembly_code.txt'), 'utf8')
         const typed_tree    = await fs.readFile(join(__dirname, 'IDE/outputs/', 'typed_tree.txt'), 'utf8')
         const symble_table  = await fs.readFile(join(__dirname, 'IDE/outputs/', 'symble_table.txt'), 'utf8')
