@@ -34,7 +34,7 @@ let main: (unit -> unit) = lambda none : unit -> unit {
 //	fibonacci 200;
 	
 	let n: int;
-	n = 10000;
+	n = 1000000000;
 
 
 	let a: int;
@@ -47,7 +47,11 @@ let main: (unit -> unit) = lambda none : unit -> unit {
 
 	while (a < n) {
 
-		out_int (identity a);
+//		if ( (a & 1) == 0) {
+			out_int (identity a);
+//		} else {
+//			out_int (a + a);
+//		};
 
 		t = a + b;
 		a = b;
