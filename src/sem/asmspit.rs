@@ -59,6 +59,9 @@ impl<'a> AssemblySpitter<'a> {
         for i in 0..8 {
             self.program += format!("\t_funcall_arg{i}\tresb\t8\n").as_str();
         }
+        for i in 0..8 {
+            self.program += format!("\tglobal _funcall_arg{i}\n").as_str();
+        }
         return self;
     }
     pub fn next_branchgen(&mut self) -> usize {
@@ -217,10 +220,16 @@ impl<'a> AssemblySpitter<'a> {
 
                     if matches!(lhstype, ValueKind::LvalueRef(_)) {
                         self.program += "\n\t\tmov rax, qword [rax]\n";
+                    } else if matches!(lhstype, ValueKind::Lvalue(_, _)) {
+                        eprintln!("warning: impossible lvalue.");
+                        self.program += "\n\t\tmov rax, qword [rax]\n";
                     }
 
                     if !matches!(opr, Operator::AssignOptr) {
                         if matches!(rhstype, ValueKind::LvalueRef(_)) {
+                            self.program += "\n\t\tmov rbx, qword [rbx]\n";
+                        } else if matches!(rhstype, ValueKind::Lvalue(_, _)) {
+                            eprintln!("warning: impossible lvalue.");
                             self.program += "\n\t\tmov rbx, qword [rbx]\n";
                         }
                     }
@@ -300,6 +309,13 @@ impl<'a> AssemblySpitter<'a> {
                     let rhstype = self.venture_expression(rhs).unwrap();
                     self.program += "\t\tmov rbx, rax\n\n\t\tpop rax\n\n";
 
+                    if matches!(rhstype, ValueKind::LvalueRef(_)) {
+                        self.program += "\n\t\tmov rbx, qword [rbx]\n";
+                    } else if matches!(rhstype, ValueKind::Lvalue(_, _)) {
+                        eprintln!("warning: impossible lvalue.");
+                        self.program += "\n\t\tmov rbx, qword [rbx]\n";
+                    }
+
                     self.program += "\t\tlea rax, qword [rax + rbx * 8]\n\n";
                     Some(operator_check(&lhstype, &rhstype, &opr).unwrap())
                 }
@@ -327,7 +343,6 @@ impl<'a> AssemblySpitter<'a> {
                                 )
                             }
 
-                            kid.print_tree(0);
                             eprintln!("warning: function call");
                             self.program += "\t\t; funcall \n";
 
@@ -370,17 +385,24 @@ impl<'a> AssemblySpitter<'a> {
             }
         } else {
             for c in node.get_children() {
-                self.venture_expression(c);
-            }
-            if node
-                .get_kind()
-                .to_owned()
-                .some_virt()
-                .is_some_and(|v| matches!(v, Virtual::Return))
-            {
-                self.program += "\t\t; return stmt\n";
-                self.program += "\t\tret\n";
-                self.program += "\t\t;\n"
+                if c.get_kind()
+                    .to_owned()
+                    .some_virt()
+                    .is_some_and(|v| matches!(v, Virtual::Return))
+                {
+                    let evk = self.venture_expression(c.follow_line(1)).unwrap();
+
+                    if matches!(evk, ValueKind::LvalueRef(_)) {
+                        self.program += "\n\t\tmov rax, qword [rax]\n";
+                    } else if matches!(evk, ValueKind::Lvalue(_, _)) {
+                        eprintln!("warning: impossible lvalue.");
+                        self.program += "\n\t\tmov rax, qword [rax]\n";
+                    }
+
+                    self.program += "\t\tret\n";
+                } else {
+                    self.venture_expression(c);
+                }
             }
             None
         }
@@ -471,7 +493,7 @@ impl<'a> Compiler<'a> {
         let mut res = String::new();
         res += format!("\n{}\n", self.preamble).as_str();
 
-        res += "section .text\n\n\tglobal _start\n\n";
+        res += "section .text\n\n\tglobal _start\n\textern out_int\n\n_start:\t\tcall main\n\t\tmov rax, SYS_EXIT\n\t\txor rdi, rdi\n\t\tsyscall\n\n";
         for f in &self.functions_s {
             res += format!("\n{}\n", f).as_str();
         }

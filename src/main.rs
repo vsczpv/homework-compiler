@@ -152,7 +152,21 @@ fn main() -> Result<(), Box<dyn Error>> {
         .make_root();
 
     let mut symbols = SymbolTable::new();
-    let syn = SymtabGenerator::new(&mut symbols, 0).generate(syn)?;
+
+    symbols.add(Symbol {
+        stype: SymbolMajorType::Lambda {
+            args: vec![SymbolMajorType::Builtin(BuiltinTypes::Int)],
+            ret: Box::new(SymbolMajorType::Builtin(BuiltinTypes::Unit)),
+            argsym: vec![],
+        },
+        defined: sem::symtab::SymbolDefinedState::Transient,
+        scope: 0,
+        ident: String::from("out_int"),
+        used: false,
+        generation: 0,
+    });
+
+    let syn = SymtabGenerator::new(&mut symbols, 1).generate(syn)?;
 
     if matches!(args.emit, EmissionMode::Syntax) {
         syn.print_tree(0);
@@ -224,7 +238,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut function_argmts: Vec<&Box<AstNode>> = Vec::new();
     find_lambda_scopes(&typetree, &mut function_scopes, &mut function_argmts);
 
-    if function_count != function_scopes.len() {
+    if (function_count - 1) != function_scopes.len() {
         return Err(format!("All functions must be defined"))?;
     }
 
@@ -232,6 +246,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut callcheck_index = 0;
     for (i, s) in symbols.get_all_syms().iter().enumerate() {
+        if s.ident == String::from("out_int") {
+            continue;
+        }
         if s.stype.is_lambda() {
             functions.push((
                 s.ident.clone(),

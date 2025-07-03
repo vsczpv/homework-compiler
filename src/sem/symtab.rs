@@ -41,7 +41,7 @@ impl SymbolTable {
     pub fn new() -> Self {
         SymbolTable { syms: Vec::new() }
     }
-    fn add(&mut self, sym: Symbol) {
+    pub fn add(&mut self, sym: Symbol) {
         if sym.ident != "_" {
             self.syms.push(sym);
         }

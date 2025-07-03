@@ -1,45 +1,58 @@
-
-let jesu_cristo: (unit -> int) = lambda none : unit -> int {
-	return 1;
+let identity: (int -> int) = lambda v : int -> int {
+	return v;
 };
 
-let eeee: (unit -> unit) = lambda none : unit -> unit {
-	return!;
-};
+let fibonacci: (int -> unit) = lambda n : int -> unit {
 
-let other: (int int -> int) = lambda x y : int int -> int {
-	return x + y;
-};
+	let a: int;
+	let b: int;
+	let t: int;
 
-let main: (unit -> unit) = lambda none : unit -> unit {
-
-	let b: [int; 4];
-	let r: int;
-
-	(b[1]) = other (1 + 2) r;
-
-	if (5 < 2) {
-		r = 1;
-	} else if (2 == 7) {
-		r = 2;
-	} else {
-		r = 3;
-	};
+	a = 0;
+	b = 1;
+	t = 0;
 
 	let i: int;
 	i = 0;
 
-	while (i != 4) {
-		b[i] = i;
+	while (i < n) {
+
+// lol		out_int a;
+
+		t = a + b;
+		a = b;
+		b = t;
+
 		i = i + 1;
 	};
 
-	/*
-	i = 0;
-	while (i < 4) {
-		out_int (b[i]);
+	return!;
+};
+
+let main: (unit -> unit) = lambda none : unit -> unit {
+
+//	fibonacci 200;
+	
+	let n: int;
+	n = 10000;
+
+
+	let a: int;
+	let b: int;
+	let t: int;
+
+	a = 0;
+	b = 1;
+	t = 0;
+
+	while (a < n) {
+
+		out_int (identity a);
+
+		t = a + b;
+		a = b;
+		b = t;
 	};
-	*/
 
 	return!;
 };

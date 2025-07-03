@@ -159,8 +159,13 @@ impl SymbolMajorType {
                 } else if let ValueKind::Lvalue(tp, _) = tp {
                     eprintln!("warning: lvalue on parse_type, discarding reference data. (maybe a function call?)");
                     return tp;
+                } else if let ValueKind::LvalueRef(tp) = tp {
+                    return tp;
+                    eprintln!("warning: lvalue-ref on parse_type, discarding reference data. (maybe array on funcall?)");
+                    //                    panic!("internal compiler error: lvalue-ref on parse_type");
+                    //
                 } else {
-                    panic!("internal compiler error: lvalue-ref on parse_type");
+                    panic!();
                 }
             }
             NodeKind::Virt(v) => match v {
